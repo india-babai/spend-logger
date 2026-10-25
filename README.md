@@ -19,7 +19,7 @@ A simple record of each calendar month: money in, and how much of it went into i
 
 ## Spend Logger features
 
-- **Billing cycle from the 19th to the 18th.** The app picks the current cycle from today's date. Use ‹ › to look at past cycles, and tap the cycle name to jump back to the current one.
+- **Billing cycle**, 19th to 18th by default. Change it in **Settings → Billing cycle starts on**, any day from the 1st to the 28th; the 1st means the cycle is the calendar month. When you change it, expenses keep their dates and are regrouped into the new cycles. Statement totals and fixed costs move to the new cycle that overlaps their old one most. The app picks the current cycle from today's date. Use ‹ › to look at past cycles, and tap the cycle name to jump back to the current one.
 - **Bill meter:** "₹X of ₹22,000", where X includes fixed costs that haven't been charged yet.
 - **Projection:** fixed costs + (variable spend ÷ days elapsed × days in cycle). It shows green at or below 90% of budget, amber up to 100%, and red above.
 - **Daily allowance:** (budget − spent − uncharged fixed costs) ÷ days left.
@@ -114,7 +114,7 @@ Push your changes. The service worker serves the cached version first and fetche
 These constants are at the top of `app.js`:
 
 ```js
-const CYCLE_START_DAY = 19;       // cycle runs 19th → 18th
+const DEFAULT_CYCLE_START_DAY = 19; // first-run default; change it in Settings
 const SMALL_SPEND_LIMIT = 200;
 const PAUSE_THRESHOLD = 1000;
 const BACKUP_REMINDER_DAYS = 14;

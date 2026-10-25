@@ -27,7 +27,7 @@
    ========================================================================== */
 
 const STORAGE_KEY = 'spendlogger.v1';
-const CYCLE_START_DAY = 19;       // cycle runs 19th → 18th (statement date: 18th)
+const DEFAULT_CYCLE_START_DAY = 19; // cycle runs 19th → 18th (statement date: 18th); changeable in Settings
 const SMALL_SPEND_LIMIT = 200;    // "small spend" counter threshold
 const PAUSE_THRESHOLD = 1000;     // show the pause screen at or above this amount
 const BACKUP_REMINDER_DAYS = 14;  // nag if the last export is older than this
@@ -39,6 +39,7 @@ function defaultState() {
   return {
     version: 1,
     budget: 22000,
+    cycleStartDay: DEFAULT_CYCLE_START_DAY,
     theme: 'auto', // 'auto' | 'light' | 'dark'
     categories: [
       { id: 'blinkit', name: 'Blinkit/Zepto', budget: 1800 },
@@ -148,21 +149,35 @@ function utcDate(iso) {
   return new Date(Date.UTC(y, m, d));
 }
 
-/** A cycle is identified by its start date. 25 Oct → '…-10-19'; 5 Nov → '…-10-19'. */
+// Day of the month a cycle starts on (1–28). Loaded from Settings below; the
+// statement date is the day before. Start day 1 = statement on the last day of the month.
+let cycleStartDay = DEFAULT_CYCLE_START_DAY;
+
+/** "1st", "2nd", "19th", "23rd" */
+function ordinal(n) {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th';
+  return n + suffix;
+}
+/** "19th → 18th" or "1st → last day" */
+function cycleRangeText(startDay = cycleStartDay) {
+  return startDay === 1 ? '1st → last day of the month' : `${ordinal(startDay)} → ${ordinal(startDay - 1)} of next month`;
+}
+
+/** A cycle is identified by its start date. With start day 19: 25 Oct → '…-10-19'; 5 Nov → '…-10-19'. */
 function cycleKeyFor(iso) {
   const [y, m, d] = parseISO(iso);
-  return d >= CYCLE_START_DAY ? isoFrom(y, m, CYCLE_START_DAY) : isoFrom(y, m - 1, CYCLE_START_DAY);
+  return d >= cycleStartDay ? isoFrom(y, m, cycleStartDay) : isoFrom(y, m - 1, cycleStartDay);
 }
 function currentKey() {
   return cycleKeyFor(todayISO());
 }
 function shiftCycle(key, n) {
   const [y, m] = parseISO(key);
-  return isoFrom(y, m + n, CYCLE_START_DAY);
+  return isoFrom(y, m + n, cycleStartDay);
 }
 function cycleInfo(key) {
   const [y, m] = parseISO(key);
-  const end = isoFrom(y, m + 1, CYCLE_START_DAY - 1);
+  const end = isoFrom(y, m + 1, cycleStartDay - 1);
   return { start: key, end, days: dayNumber(end) - dayNumber(key) + 1 };
 }
 
@@ -186,6 +201,7 @@ function cycleLabelYear(key) {
    ========================================================================== */
 
 let state = loadState();
+cycleStartDay = state.cycleStartDay;
 
 function loadState() {
   try {
@@ -210,6 +226,8 @@ function normalizeState(data) {
     s.categories.push({ id: FIXED_ID, name: 'Fixed/EMI', budget: null });
   }
   s.budget = Number(s.budget) || 0;
+  const day = Number(s.cycleStartDay);
+  s.cycleStartDay = day >= 1 && day <= 28 ? day : DEFAULT_CYCLE_START_DAY;
   return s;
 }
 
@@ -650,6 +668,12 @@ function renderSettings() {
       <label class="field">Monthly budget (₹)
         <input type="number" inputmode="numeric" min="0" data-setting="budget" value="${state.budget}">
       </label>
+      <label class="field">Billing cycle starts on
+        <select data-setting="cycleStartDay">
+          ${Array.from({ length: 28 }, (_, i) => i + 1).map((d) => `<option value="${d}" ${d === cycleStartDay ? 'selected' : ''}>
+            ${ordinal(d)} (statement on the ${d === 1 ? 'last day' : ordinal(d - 1)})</option>`).join('')}
+        </select>
+      </label>
       <label class="field">Theme
         <select data-setting="theme">
           ${['auto', 'light', 'dark'].map((t) => `<option value="${t}" ${state.theme === t ? 'selected' : ''}>
@@ -723,7 +747,7 @@ function renderSettings() {
       </div>
     </div>
 
-    <p class="hint" style="text-align:center">Spend Logger · cycle runs ${CYCLE_START_DAY}th → ${CYCLE_START_DAY - 1}th</p>`;
+    <p class="hint" style="text-align:center">Spend Logger · cycle runs ${cycleRangeText()}</p>`;
 }
 
 /** Inline edits in Settings save on change (no re-render, so focus isn't lost). */
@@ -735,6 +759,15 @@ function onSettingsChange(e) {
     if (v >= 0) state.budget = roundMoney(v); else el.value = state.budget;
     $('#catTotal').textContent = categoryTotalText();
     return save();
+  }
+  if (el.dataset.setting === 'cycleStartDay') {
+    const day = Number(el.value);
+    const ok = confirm(`Change the billing cycle to ${cycleRangeText(day)}?\n\n`
+      + 'Expenses keep their dates and are regrouped into the new cycles. Statement totals and '
+      + 'fixed costs move to the new cycle that overlaps their old one most. You can change it back later.');
+    if (!ok) { el.value = cycleStartDay; return; }
+    changeCycleStartDay(day);
+    return;
   }
   if (el.dataset.setting === 'theme') {
     state.theme = el.value;
@@ -774,6 +807,39 @@ function onSettingsChange(e) {
   }
   save();
   if (row.dataset.kind === 'category') $('#catTotal').textContent = categoryTotalText();
+}
+
+/**
+ * Switch to a new cycle start day. Cycle keys saved in statements and fixed
+ * costs are moved to the new cycle containing the middle of their old cycle
+ * (the one that overlaps it most), so changing back restores them.
+ */
+function changeCycleStartDay(day) {
+  if (day === cycleStartDay) return;
+  // Middle of an old cycle — computed before the day changes.
+  const mid = (key) => {
+    if (!key) return key;
+    const [y, m, d] = parseISO(key);
+    return isoFrom(y, m, d + 15);
+  };
+  const statements = Object.entries(state.statements).map(([key, total]) => [mid(key), total]);
+  const fixedMids = state.fixedCosts.map((f) => ({ f, cycle: mid(f.cycle), start: mid(f.startCycle), end: mid(f.endCycle) }));
+
+  cycleStartDay = state.cycleStartDay = day;
+  const remap = (middle) => (middle ? cycleKeyFor(middle) : middle);
+
+  state.statements = {};
+  for (const [middle, total] of statements) state.statements[remap(middle)] = total;
+  for (const { f, cycle, start, end } of fixedMids) {
+    if (f.cycle) f.cycle = remap(cycle);
+    if (f.startCycle) f.startCycle = remap(start);
+    if (f.endCycle) f.endCycle = remap(end);
+  }
+
+  viewKey = knownCurrent = currentKey();
+  save();
+  renderSettings(); // fixed-cost cycle pickers show the new labels
+  showToast(`Cycle now runs ${cycleRangeText()}`);
 }
 
 /** Add a row to a settings list, then focus its name field. */
@@ -1079,6 +1145,7 @@ $('#importFile').addEventListener('change', async (e) => {
     delete data.exportedAt;
     delete data.invest;
     state = normalizeState(data);
+    cycleStartDay = state.cycleStartDay;
     save();
     // Older backups have no investment data — keep what's on the phone then.
     if (invest) setInvestState(invest); // invest.js
