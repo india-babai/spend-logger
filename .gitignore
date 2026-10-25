@@ -1,0 +1,10 @@
+# The repo is public — never commit personal data.
+# Backups exported from the app:
+spend-logger-backup-*.json
+*backup*.json
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
+.claude/

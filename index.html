@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Spend Logger</title>
+  <meta name="description" content="Personal credit card spending tracker">
+  <meta name="theme-color" content="#f5f6f8">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Spends">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Top bar: cycle switcher on Home/History, plain title on Settings -->
+  <header class="topbar">
+    <div class="cycle-nav" id="cycleNav">
+      <button class="icon-btn" data-action="prev-cycle" aria-label="Previous cycle">‹</button>
+      <button class="cycle-label" data-action="current-cycle" aria-label="Jump to current cycle">
+        <span id="cycleLabel"></span>
+        <small id="cycleSub"></small>
+      </button>
+      <button class="icon-btn" data-action="next-cycle" id="nextCycleBtn" aria-label="Next cycle">›</button>
+    </div>
+    <h1 id="pageTitle" hidden>Settings</h1>
+  </header>
+
+  <!-- Backup reminder (shown when the last export is older than 14 days) -->
+  <div id="backupBanner" class="banner" hidden></div>
+
+  <main>
+    <section id="view-home" class="view" aria-label="Home"></section>
+    <section id="view-history" class="view" aria-label="History" hidden></section>
+    <section id="view-settings" class="view" aria-label="Settings" hidden></section>
+  </main>
+
+  <button id="fab" class="fab" data-action="add" aria-label="Add expense">+ Add</button>
+
+  <nav class="tabbar" aria-label="Main">
+    <button data-tab="home" class="active">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+      <span>Home</span>
+    </button>
+    <button data-tab="history">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span>History</span>
+    </button>
+    <button data-tab="settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+  <!-- Toast with optional Undo -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Add / edit expense sheet -->
+  <dialog id="expenseDialog" class="sheet">
+    <form id="expenseForm" novalidate>
+      <h2 id="expenseTitle">Add expense</h2>
+      <label class="field">Amount (₹)
+        <input id="fAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" autofocus required>
+      </label>
+      <label class="field">Category
+        <select id="fCategory"></select>
+      </label>
+      <label class="field">Note <span class="muted">(optional)</span>
+        <input id="fNote" type="text" maxlength="80" autocomplete="off">
+      </label>
+      <label class="field">Date
+        <input id="fDate" type="date" required>
+      </label>
+      <div class="btn-row">
+        <button type="button" class="btn danger" id="fDelete" hidden>Delete</button>
+        <button type="button" class="btn" data-action="close-dialog">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Pause screen for purchases of ₹1,000 or more -->
+  <dialog id="pauseDialog" class="pause">
+    <div class="pause-body">
+      <p class="pause-kicker">Pause for a second</p>
+      <div class="pause-amount" id="pauseAmount"></div>
+      <p class="pause-text" id="pauseText"></p>
+      <p class="pause-sub muted" id="pauseSub"></p>
+      <div class="btn-row stacked">
+        <button type="button" class="btn big" id="pauseCancel">Cancel</button>
+        <button type="button" class="btn primary big" id="pauseConfirm">Confirm</button>
+      </div>
+    </div>
+  </dialog>
+
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+
+  <script src="app.js"></script>
+</body>
+</html>
