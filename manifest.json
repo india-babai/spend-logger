@@ -1,7 +1,7 @@
 {
-  "name": "Spend Logger",
-  "short_name": "Spends",
-  "description": "Personal credit card spending tracker",
+  "name": "Money Log",
+  "short_name": "Money Log",
+  "description": "Personal spending and investment tracker",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

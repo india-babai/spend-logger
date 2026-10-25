@@ -1,7 +1,12 @@
 'use strict';
 /*
- * Spend Logger — personal credit card spending tracker.
+ * Money Log — landing page + Spend Logger (credit card spending tracker).
+ * The Investment Logger lives in invest.js and reuses the helpers here.
  * Plain JS, no build step. All data lives in this browser's localStorage.
+ *
+ * Screens ("modes") are picked by the URL hash: '' = landing page,
+ * '#spend' = Spend Logger, '#invest' = Investment Logger. Using the hash
+ * means the phone's back button returns to the landing page.
  *
  * Sections:
  *   1. Constants & default data
@@ -285,15 +290,47 @@ function categoryName(id) {
    6. Rendering
    ========================================================================== */
 
+let mode = 'landing';             // 'landing' | 'spend' | 'invest'
+let enteredFromLanding = false;   // so the back link can use history.back()
 let currentTab = 'home';
 let viewKey = currentKey();       // the cycle being viewed
 let knownCurrent = currentKey();  // to notice when the app is reopened in a new cycle
 
+function modeFromHash() {
+  const h = location.hash.slice(1);
+  return h === 'spend' || h === 'invest' ? h : 'landing';
+}
+
 function render() {
+  document.body.dataset.mode = mode;
+  const isSpend = mode === 'spend';
   const isSettings = currentTab === 'settings';
   const isCurrent = viewKey === currentKey();
 
-  // Header
+  // Which big pieces are visible in this mode
+  $('#view-landing').hidden = mode !== 'landing';
+  $('#view-invest').hidden = mode !== 'invest';
+  $('#topbar').hidden = mode === 'landing';
+  $('#spendTabbar').hidden = !isSpend;
+  $('#monthNav').hidden = mode !== 'invest';
+  $('#modeTitle').textContent = mode === 'invest' ? 'Investment Logger' : 'Spend Logger';
+  $('#fab').hidden = mode === 'landing' || (isSpend && isSettings);
+  for (const tab of ['home', 'history', 'settings']) {
+    $(`#view-${tab}`).hidden = !isSpend || tab !== currentTab;
+  }
+
+  renderBanner();
+  if (mode === 'landing') {
+    $('#cycleNav').hidden = true;
+    return renderLanding();
+  }
+  if (mode === 'invest') {
+    $('#cycleNav').hidden = true;
+    $('#pageTitle').hidden = true;
+    return renderInvest(); // invest.js
+  }
+
+  // Spend Logger header
   $('#cycleNav').hidden = isSettings;
   $('#pageTitle').hidden = !isSettings;
   $('#cycleLabel').textContent = cycleLabel(viewKey);
@@ -302,14 +339,10 @@ function render() {
   sub.classList.toggle('past', !isCurrent);
   $('#nextCycleBtn').disabled = viewKey >= currentKey();
 
-  // Tabs & views
   for (const tab of ['home', 'history', 'settings']) {
-    $(`#view-${tab}`).hidden = tab !== currentTab;
     document.querySelector(`[data-tab="${tab}"]`).classList.toggle('active', tab === currentTab);
   }
-  $('#fab').hidden = isSettings;
 
-  renderBanner();
   if (currentTab === 'home') renderHome();
   if (currentTab === 'history') renderHistory();
   if (currentTab === 'settings') renderSettings();
@@ -324,7 +357,7 @@ function bar(spent, cap, extraClass = '') {
 
 function renderBanner() {
   const el = $('#backupBanner');
-  const hasData = state.transactions.length > 0;
+  const hasData = state.transactions.length > 0 || investState.entries.length > 0;
   const daysSince = state.lastExport ? Math.floor((Date.now() - new Date(state.lastExport)) / DAY_MS) : null;
   const overdue = hasData && (daysSince === null || daysSince > BACKUP_REMINDER_DAYS);
   el.hidden = !overdue;
@@ -332,6 +365,48 @@ function renderBanner() {
   const msg = daysSince === null ? 'You haven’t backed up your data yet.' : `Last backup was ${daysSince} days ago.`;
   el.innerHTML = `<div class="banner-inner"><span>${msg}</span>
     <button class="btn small primary" data-action="export-download">Back up</button></div>`;
+}
+
+/* ---------- Landing page ---------- */
+
+const fmtToday = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+function renderLanding() {
+  const s = summarize(currentKey());
+  const inv = investLandingInfo(); // invest.js
+  const lastExport = state.lastExport ? fmtLongDate.format(new Date(state.lastExport)) : 'never';
+
+  $('#view-landing').innerHTML = `
+    <div class="landing-head">
+      <h1>Money Log</h1>
+      <p class="muted">${fmtToday.format(new Date())}</p>
+    </div>
+
+    <a class="launch spend" href="#spend">
+      <span class="launch-icon"><svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></svg></span>
+      <span class="launch-title">Spend Logger</span>
+      <span class="launch-sub num">${fmt(s.bill)} of ${fmt(state.budget)} · ${cycleLabel(currentKey())}</span>
+      ${bar(s.bill, state.budget)}
+      <span class="launch-chev" aria-hidden="true">›</span>
+    </a>
+
+    <a class="launch invest" href="#invest">
+      <span class="launch-icon"><svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span>
+      <span class="launch-title">Investment Logger</span>
+      <span class="launch-sub num">${inv.text}</span>
+      ${inv.barHtml}
+      <span class="launch-chev" aria-hidden="true">›</span>
+    </a>
+
+    <div class="card landing-backup">
+      <p class="hint">Data stays on this phone. Last backup: <strong>${esc(lastExport)}</strong>.</p>
+      <div class="settings-actions">
+        <button class="btn small" data-action="export-download">Export</button>
+        <button class="btn small" data-action="import">Import</button>
+      </div>
+    </div>`;
 }
 
 /* ---------- Home ---------- */
@@ -635,7 +710,8 @@ function renderSettings() {
 
     <div class="card">
       <h2>Backup</h2>
-      <p class="hint">Data is stored only on this device. Last export: <strong>${esc(lastExport)}</strong>.</p>
+      <p class="hint">Data is stored only on this device. The backup includes both the Spend and Investment loggers.
+        Last export: <strong>${esc(lastExport)}</strong>.</p>
       <div class="settings-actions">
         <button class="btn primary" data-action="export-download">Export JSON</button>
         ${navigator.canShare ? '<button class="btn" data-action="export-share">Share…</button>' : ''}
@@ -939,8 +1015,9 @@ function hideToast() {
    10. Backup: export / import
    ========================================================================== */
 
+/** One file with both loggers: the spend data at the top level (as before) plus `invest`. */
 function backupFile() {
-  const data = { ...state, exportedAt: new Date().toISOString() };
+  const data = { ...state, invest: investState, exportedAt: new Date().toISOString() };
   const name = `spend-logger-backup-${todayISO()}.json`;
   return new File([JSON.stringify(data, null, 2)], name, { type: 'application/json' });
 }
@@ -988,11 +1065,18 @@ $('#importFile').addEventListener('change', async (e) => {
       throw new Error('This doesn’t look like a Spend Logger backup.');
     }
     const when = data.exportedAt ? fmtLongDate.format(new Date(data.exportedAt)) : 'an unknown date';
-    const ok = confirm(`Replace all current data with the backup from ${when} (${plural(data.transactions.length, 'transaction')})?`);
+    const investCount = data.invest?.entries?.length;
+    const contents = plural(data.transactions.length, 'transaction')
+      + (investCount != null ? `, ${investCount} investment ${investCount === 1 ? 'entry' : 'entries'}` : '');
+    const ok = confirm(`Replace current data with the backup from ${when} (${contents})?`);
     if (!ok) return;
+    const invest = data.invest;
     delete data.exportedAt;
+    delete data.invest;
     state = normalizeState(data);
     save();
+    // Older backups have no investment data — keep what's on the phone then.
+    if (invest) setInvestState(invest); // invest.js
     applyTheme();
     viewKey = currentKey();
     render();
@@ -1033,7 +1117,12 @@ document.addEventListener('click', (e) => {
     case 'prev-cycle': viewKey = shiftCycle(viewKey, -1); render(); break;
     case 'next-cycle': if (viewKey < currentKey()) { viewKey = shiftCycle(viewKey, 1); render(); } break;
     case 'current-cycle': viewKey = currentKey(); render(); break;
-    case 'add': openExpenseDialog(); break;
+    case 'add': if (mode === 'invest') openInvestDialog(); else openExpenseDialog(); break;
+    case 'go-landing':
+      // Prefer real "back" so the history stays tidy; fall back to clearing the hash.
+      if (enteredFromLanding) history.back();
+      else { history.replaceState(null, '', location.pathname + location.search); mode = 'landing'; render(); }
+      break;
     case 'close-dialog': el.closest('dialog').close(); break;
     case 'undo': { const fn = toastUndo; hideToast(); fn?.(); break; }
     case 'edit-txn': openEditTxn(id); break;
@@ -1095,15 +1184,30 @@ document.addEventListener('visibilitychange', () => {
     if (viewKey === knownCurrent) viewKey = cur;
     knownCurrent = cur;
   }
-  if (currentTab !== 'settings') render(); // don't disturb an edit in progress
+  if (!(mode === 'spend' && currentTab === 'settings')) render(); // don't disturb an edit in progress
+});
+
+// Switch screens when the hash changes (landing links, back button).
+window.addEventListener('hashchange', () => {
+  const next = modeFromHash();
+  enteredFromLanding = mode === 'landing' && next !== 'landing';
+  mode = next;
+  if (mode === 'spend') currentTab = 'home';
+  for (const d of document.querySelectorAll('dialog[open]')) d.close();
+  hideToast();
+  window.scrollTo(0, 0);
+  render();
 });
 
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
-// Start
-applyTheme();
-save(); // writes seed data on first run
-render();
+// Start once invest.js has loaded too (it runs right after this file).
+document.addEventListener('DOMContentLoaded', () => {
+  applyTheme();
+  save(); // writes seed data on first run
+  mode = modeFromHash();
+  render();
+});
 
 // Ask the browser not to evict our localStorage under storage pressure.
 navigator.storage?.persist?.();

@@ -3,21 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Spend Logger</title>
-  <meta name="description" content="Personal credit card spending tracker">
+  <title>Money Log</title>
+  <meta name="description" content="Personal spending and investment tracker">
   <meta name="theme-color" content="#f5f6f8">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Spends">
+  <meta name="apple-mobile-web-app-title" content="Money Log">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Top bar: cycle switcher on Home/History, plain title on Settings -->
-  <header class="topbar">
+  <!-- Top bar (hidden on the landing page): back link, then a cycle/month switcher or a title -->
+  <header class="topbar" id="topbar">
+    <div class="mode-bar">
+      <button class="back-btn" data-action="go-landing" aria-label="Back to start">‹ <span id="modeTitle">Spend Logger</span></button>
+    </div>
+    <div class="cycle-nav" id="monthNav" hidden>
+      <button class="icon-btn" data-action="inv-prev-month" aria-label="Previous month">‹</button>
+      <button class="cycle-label" data-action="inv-this-month" aria-label="Jump to this month">
+        <span id="monthLabel"></span>
+        <small id="monthSub"></small>
+      </button>
+      <button class="icon-btn" data-action="inv-next-month" id="nextMonthBtn" aria-label="Next month">›</button>
+    </div>
     <div class="cycle-nav" id="cycleNav">
       <button class="icon-btn" data-action="prev-cycle" aria-label="Previous cycle">‹</button>
       <button class="cycle-label" data-action="current-cycle" aria-label="Jump to current cycle">
@@ -33,14 +44,21 @@
   <div id="backupBanner" class="banner" hidden></div>
 
   <main>
-    <section id="view-home" class="view" aria-label="Home"></section>
+    <!-- Landing page: pick Spend Logger or Investment Logger -->
+    <section id="view-landing" class="view landing" aria-label="Start"></section>
+
+    <!-- Investment Logger (single month-wise page, see invest.js) -->
+    <section id="view-invest" class="view" aria-label="Investment Logger" hidden></section>
+
+    <!-- Spend Logger tabs -->
+    <section id="view-home" class="view" aria-label="Home" hidden></section>
     <section id="view-history" class="view" aria-label="History" hidden></section>
     <section id="view-settings" class="view" aria-label="Settings" hidden></section>
   </main>
 
   <button id="fab" class="fab" data-action="add" aria-label="Add expense">+ Add</button>
 
-  <nav class="tabbar" aria-label="Main">
+  <nav class="tabbar" id="spendTabbar" aria-label="Spend Logger">
     <button data-tab="home" class="active">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
       <span>Home</span>
@@ -96,8 +114,40 @@
     </div>
   </dialog>
 
+  <!-- Investment Logger: add / edit entry sheet -->
+  <dialog id="investDialog" class="sheet">
+    <form id="investForm" novalidate>
+      <h2 id="investTitle">Add entry</h2>
+      <div class="segmented" role="radiogroup" aria-label="Type">
+        <label><input type="radio" name="invType" value="income"><span>Income</span></label>
+        <label><input type="radio" name="invType" value="invest"><span>Investment</span></label>
+        <label><input type="radio" name="invType" value="save"><span>Savings</span></label>
+      </div>
+      <label class="field">Name
+        <input id="iName" type="text" list="iNames" maxlength="60" autocomplete="off" placeholder="e.g. Salary, Groww SIP">
+      </label>
+      <datalist id="iNames"></datalist>
+      <label class="field">Amount (₹)
+        <input id="iAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0">
+        <small id="iAmountHint" class="hint"></small>
+      </label>
+      <label class="field">Month
+        <input id="iMonth" type="month" required>
+      </label>
+      <label class="field">Note <span class="muted">(optional)</span>
+        <input id="iNote" type="text" maxlength="80" autocomplete="off">
+      </label>
+      <div class="btn-row">
+        <button type="button" class="btn danger" id="iDelete" hidden>Delete</button>
+        <button type="button" class="btn" data-action="close-dialog">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <input type="file" id="importFile" accept="application/json,.json" hidden>
 
   <script src="app.js"></script>
+  <script src="invest.js"></script>
 </body>
 </html>

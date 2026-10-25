@@ -1,10 +1,23 @@
-# Spend Logger
+# Money Log
 
-A personal credit card spending tracker. It is a static PWA: plain HTML, CSS and JavaScript with no framework, no build step and no backend. It installs to your phone's home screen and works fully offline.
+A personal money tracker with two parts: a **Spend Logger** for credit card spending and an **Investment Logger** that shows where each month's income goes. It is a static PWA: plain HTML, CSS and JavaScript with no framework, no build step and no backend. It installs to your phone's home screen and works fully offline.
+
+The app opens on a landing page with two big buttons, one for each logger. Each button shows a one-line summary of the current cycle or month. Use **‹** at the top, or the phone's back button, to return to the landing page.
 
 **Your data never leaves your phone.** Everything is stored in the browser's `localStorage` on the device. Nothing is sent anywhere, and nothing personal is in this repo. Use **Settings → Backup** to export a JSON file now and then.
 
-## Features
+## Investment Logger
+
+A simple record of each calendar month: money in, and how much of it went into investments and savings.
+
+- **Entry types:** each entry is **Income** (e.g. Salary ₹2,50,000), **Investment** (e.g. Groww SIP ₹80,000, IndMoney ₹50,000) or **Savings** (e.g. FD, RD, emergency fund).
+- **Month summary:** total income, with a split bar and the amount and percentage invested, saved, and left for spending. A pill shows the share of income put away.
+- **"From last month" chips:** last month's entries that aren't logged yet this month. Tap one to log it again, or use **Add all**. Every log has an undo toast.
+- **Add sheet:** pick a type, then a name (suggestions include names you've used before). Choosing a name you've used before fills in its last amount. A hint under the amount shows it in lakh, e.g. ₹2.5L.
+- **Charts and totals:** a 6-month bar chart (income, with invested and saved stacked inside) and totals for the Indian financial year (Apr–Mar) so far.
+- **Editing:** tap an entry to edit or delete it.
+
+## Spend Logger features
 
 - **Billing cycle from the 19th to the 18th.** The app picks the current cycle from today's date. Use ‹ › to look at past cycles, and tap the cycle name to jump back to the current one.
 - **Bill meter:** "₹X of ₹22,000", where X includes fixed costs that haven't been charged yet.
@@ -22,8 +35,9 @@ A personal credit card spending tracker. It is a static PWA: plain HTML, CSS and
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | Page shell, dialogs, tab bar |
-| `app.js` | All app logic (well commented, split into numbered sections) |
+| `index.html` | Page shell, landing page, dialogs, tab bar |
+| `app.js` | Landing page, screen switching, Spend Logger, backup (split into numbered sections) |
+| `invest.js` | Investment Logger |
 | `styles.css` | Mobile-first styles, light/dark themes |
 | `manifest.json` | PWA install metadata |
 | `service-worker.js` | Offline caching |
@@ -81,7 +95,8 @@ Push your changes. The service worker serves the cached version first and fetche
 
 - `localStorage` belongs to the browser and site. Uninstalling the app or clearing site data **deletes everything**, so export a backup regularly. The app reminds you after 14 days.
 - On Android, **Share…** sends the backup straight to Google Drive, email and so on. **Export JSON** downloads it.
-- To restore, use **Settings → Import** and pick the JSON file. This replaces all current data.
+- One backup file holds both loggers. You can export and import from the landing page or from Spend Logger → Settings.
+- To restore, use **Import** and pick the JSON file. This replaces all current data. An older backup with no investment data leaves your investment entries as they are.
 - `.gitignore` excludes `*backup*.json` so a backup can't be committed to the public repo by accident.
 - The app's data lives under the GitHub Pages URL. If you rename the repo or change the URL, export first and import again at the new address.
 
