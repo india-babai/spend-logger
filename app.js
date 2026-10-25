@@ -659,12 +659,48 @@ function categoryTotalText() {
   return `Category budgets add up to ${fmt(total)} of your ${fmt(state.budget)} budget.`;
 }
 
+// Settings sections start collapsed each time the app opens; this remembers
+// which ones are open while you're using it (so re-renders keep them open).
+const openSettingsSections = new Set();
+
+/** One-line summaries shown in each collapsed section header. */
+function settingsSummaries() {
+  const catTotal = state.categories.reduce((s, c) => s + (c.budget || 0), 0);
+  const thisCycleFixed = sumAmounts(fixedCostsFor(currentKey()));
+  return {
+    budget: `${fmt(state.budget)} · cycle ${cycleRangeText()}`,
+    categories: `${state.categories.length} categories · ${fmt(catTotal)}`,
+    presets: state.presets.length ? state.presets.map((p) => p.name).join(', ') : 'None yet',
+    fixed: `${fmt(thisCycleFixed)} this cycle · ${state.fixedCosts.length} in total`,
+    backup: `Last export: ${state.lastExport ? fmtLongDate.format(new Date(state.lastExport)) : 'never'}`,
+  };
+}
+
+/** Collapsible settings card. */
+function settingsSection(id, title, body) {
+  return `
+    <details class="card settings-section" data-section="${id}" ${openSettingsSections.has(id) ? 'open' : ''}>
+      <summary>
+        <span class="sec-text"><span class="sec-title">${title}</span>
+          <span class="sec-sub" data-summary="${id}">${esc(settingsSummaries()[id])}</span></span>
+        <svg class="sec-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="sec-body">${body}</div>
+    </details>`;
+}
+
+/** Refresh the header summaries after an inline edit. */
+function refreshSettingsSummaries() {
+  const sums = settingsSummaries();
+  for (const el of document.querySelectorAll('[data-summary]')) el.textContent = sums[el.dataset.summary];
+}
+
 function renderSettings() {
   const lastExport = state.lastExport ? fmtLongDate.format(new Date(state.lastExport)) : 'never';
 
   $('#view-settings').innerHTML = `
-    <div class="card">
-      <h2>Budget</h2>
+    <p class="hint settings-intro">Tap a section to open it.</p>
+    ${settingsSection('budget', 'Budget & cycle', `
       <label class="field">Monthly budget (₹)
         <input type="number" inputmode="numeric" min="0" data-setting="budget" value="${state.budget}">
       </label>
@@ -679,11 +715,9 @@ function renderSettings() {
           ${['auto', 'light', 'dark'].map((t) => `<option value="${t}" ${state.theme === t ? 'selected' : ''}>
             ${t === 'auto' ? 'Match phone' : t[0].toUpperCase() + t.slice(1)}</option>`).join('')}
         </select>
-      </label>
-    </div>
+      </label>`)}
 
-    <div class="card">
-      <h2>Categories</h2>
+    ${settingsSection('categories', 'Categories', `
       <p class="hint" id="catTotal">${categoryTotalText()}</p>
       ${state.categories.map((c) => `
         <div class="edit-row cat" data-kind="category" data-id="${esc(c.id)}">
@@ -693,11 +727,9 @@ function renderSettings() {
           ${c.id === FIXED_ID ? '<span></span>' : `<button class="del" data-action="delete-category" aria-label="Delete ${esc(c.name)}">✕</button>`}
         </div>`).join('')}
       <div class="settings-actions"><button class="btn" data-action="add-category">+ Add category</button></div>
-      <p class="hint">Leave a budget blank for no cap.</p>
-    </div>
+      <p class="hint">Leave a budget blank for no cap.</p>`)}
 
-    <div class="card">
-      <h2>Quick-add presets</h2>
+    ${settingsSection('presets', 'Quick-add presets', `
       ${state.presets.map((p) => `
         <div class="edit-row" data-kind="preset" data-id="${esc(p.id)}">
           <input type="text" class="span-2" data-field="name" value="${esc(p.name)}" aria-label="Preset name">
@@ -705,11 +737,9 @@ function renderSettings() {
           <input type="number" inputmode="decimal" min="0" step="0.01" data-field="amount" value="${p.amount}" aria-label="Amount">
           <select class="span-2" data-field="categoryId" aria-label="Category">${categoryOptions(p.categoryId)}</select>
         </div>`).join('')}
-      <div class="settings-actions"><button class="btn" data-action="add-preset">+ Add preset</button></div>
-    </div>
+      <div class="settings-actions"><button class="btn" data-action="add-preset">+ Add preset</button></div>`)}
 
-    <div class="card">
-      <h2>Fixed costs</h2>
+    ${settingsSection('fixed', 'Fixed costs', `
       <p class="hint">Counted from the first day of their cycle until you mark them charged on Home.</p>
       ${state.fixedCosts.map((f) => `
         <div class="edit-row" data-kind="fixed" data-id="${esc(f.id)}">
@@ -733,19 +763,16 @@ function renderSettings() {
             <label class="mini-label span-all">Cycle
               <select data-field="cycle">${cycleOptions(f.cycle)}</select></label>`}
         </div>`).join('')}
-      <div class="settings-actions"><button class="btn" data-action="add-fixed">+ Add fixed cost</button></div>
-    </div>
+      <div class="settings-actions"><button class="btn" data-action="add-fixed">+ Add fixed cost</button></div>`)}
 
-    <div class="card">
-      <h2>Backup</h2>
+    ${settingsSection('backup', 'Backup', `
       <p class="hint">Data is stored only on this device. The backup includes both the Spend and Investment loggers.
         Last export: <strong>${esc(lastExport)}</strong>.</p>
       <div class="settings-actions">
         <button class="btn primary" data-action="export-download">Export JSON</button>
         ${navigator.canShare ? '<button class="btn" data-action="export-share">Share…</button>' : ''}
         <button class="btn" data-action="import">Import</button>
-      </div>
-    </div>
+      </div>`)}
 
     <p class="hint" style="text-align:center">Spend Logger · cycle runs ${cycleRangeText()}</p>`;
 }
@@ -1233,6 +1260,14 @@ document.addEventListener('click', (e) => {
 });
 
 $('#view-settings').addEventListener('change', onSettingsChange);
+$('#view-settings').addEventListener('change', refreshSettingsSummaries);
+// Remember which sections are open ('toggle' doesn't bubble, so listen in the capture phase).
+$('#view-settings').addEventListener('toggle', (e) => {
+  const id = e.target.dataset?.section;
+  if (!id) return;
+  if (e.target.open) openSettingsSections.add(id);
+  else openSettingsSections.delete(id);
+}, true);
 
 // Statement total for reconciliation — save as you type.
 $('#view-history').addEventListener('input', (e) => {
