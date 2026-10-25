@@ -81,7 +81,7 @@
     <form id="expenseForm" novalidate>
       <h2 id="expenseTitle">Add expense</h2>
       <label class="field">Amount (₹)
-        <input id="fAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" autofocus required>
+        <input id="fAmount" type="number" inputmode="decimal" step="0.01" placeholder="0" autofocus required>
       </label>
       <label class="field">Category
         <select id="fCategory"></select>
@@ -110,6 +110,36 @@
       <div class="btn-row stacked">
         <button type="button" class="btn big" id="pauseCancel">Cancel</button>
         <button type="button" class="btn primary big" id="pauseConfirm">Confirm</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Import a statement table pasted from a Claude chat (see statement-import.js) -->
+  <dialog id="importDialog" class="sheet tall">
+    <div class="sheet-body">
+      <h2>Import from statement</h2>
+      <p class="hint">Log past spends from statement screenshots that Claude reads for you.</p>
+
+      <h2 class="imp-heading">1. Copy the prompt</h2>
+      <p class="hint">Paste it into a Claude chat together with your statement screenshots.</p>
+      <div class="settings-actions">
+        <button type="button" class="btn primary" data-action="copy-prompt">Copy prompt</button>
+      </div>
+      <p class="hint ok-text" id="copyStatus" role="status"></p>
+      <details id="promptDetails" class="hint">
+        <summary>Show prompt</summary>
+        <textarea id="promptText" rows="12" readonly></textarea>
+      </details>
+
+      <h2 class="imp-heading">2. Paste Claude’s table</h2>
+      <p class="hint">Use the copy button on Claude’s reply, or select the table and copy it.</p>
+      <textarea id="importText" rows="6" spellcheck="false"
+                placeholder="| Date | Description | Amount | Category |"></textarea>
+
+      <div id="importPreview"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn" data-action="close-dialog">Close</button>
       </div>
     </div>
   </dialog>
@@ -149,5 +179,6 @@
 
   <script src="app.js"></script>
   <script src="invest.js"></script>
+  <script src="statement-import.js"></script>
 </body>
 </html>

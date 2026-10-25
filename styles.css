@@ -602,6 +602,76 @@ dialog.sheet h2 { font-size: 18px; margin-bottom: 16px; }
   dialog.sheet { margin: auto; border-radius: 20px; }
 }
 
+/* Tall sheet for the statement import (scrolls inside) */
+dialog.sheet.tall { height: 92vh; overflow-y: auto; }
+.sheet-body { padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
+.sheet-body > h2:first-child { font-size: 18px; margin-bottom: 4px; }
+.imp-heading { font-size: 15px; margin: 20px 0 4px; }
+.sheet-body .hint { margin: 4px 0; }
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+details summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+details textarea { margin-top: 6px; font-size: 12px; }
+.imp-note { margin: 6px 0; }
+.imp-skipped { font: 12px ui-monospace, Consolas, monospace; overflow-wrap: anywhere; padding: 2px 0; }
+.imp-stmt {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+.imp-stmt input, .imp-check { width: 22px; height: 22px; min-height: 0; flex: none; margin: 2px 0 0; accent-color: var(--accent); }
+.imp-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.imp-row.off .imp-main { opacity: .45; }
+.imp-main { flex: 1; min-width: 0; }
+.imp-top { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
+.imp-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-bottom { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.imp-bottom .hint { white-space: nowrap; margin: 0; }
+.imp-bottom select { min-height: 40px; font-size: 14px; padding: 0 8px; }
+.tag {
+  display: inline-block;
+  margin: 6px 6px 0 0;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--warn);
+  border: 1px solid var(--warn);
+}
+.import-footer {
+  position: sticky;
+  bottom: calc(-20px - env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -16px;
+  padding: 12px 16px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+.btn:disabled { opacity: .5; cursor: default; }
+
 /* Full-screen pause */
 dialog.pause {
   width: 100%;

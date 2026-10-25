@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION if you add/rename files in ASSETS, so old caches are
  * cleaned up.
  */
-const CACHE_VERSION = 'spendlogger-v2';
+const CACHE_VERSION = 'spendlogger-v3';
 
 const ASSETS = [
   './',
@@ -16,6 +16,7 @@ const ASSETS = [
   './styles.css',
   './app.js',
   './invest.js',
+  './statement-import.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',

@@ -269,7 +269,7 @@ function summarize(key) {
   // Daily allowance: (budget − spent − fixed not yet charged) ÷ days left
   const allowance = daysLeft ? (state.budget - bill) / daysLeft : 0;
 
-  const small = txns.filter((t) => t.amount < SMALL_SPEND_LIMIT);
+  const small = txns.filter((t) => t.amount > 0 && t.amount < SMALL_SPEND_LIMIT); // refunds are negative
 
   const byCategory = {};
   for (const t of txns) byCategory[t.categoryId] = (byCategory[t.categoryId] || 0) + t.amount;
@@ -517,6 +517,10 @@ function renderHistory() {
                placeholder="Enter when the statement arrives" value="${stmt ?? ''}">
       </label>
       <p class="reconcile-result" id="reconcileResult">${reconcileText(s, stmt)}</p>
+      <div class="settings-actions">
+        <button class="btn" data-action="open-import">Import from statement</button>
+      </div>
+      <p class="hint">Paste a table from Claude to log a past statement’s spends.</p>
     </div>
 
     <div class="card">
@@ -545,7 +549,7 @@ function renderHistory() {
           return `<button class="txn" data-action="edit-txn" data-id="${esc(t.id)}">
             <span class="txn-main"><span class="txn-title">${esc(title)}</span>
             ${sub ? `<span class="txn-sub">${esc(sub)}</span>` : ''}</span>
-            <span class="txn-amt num">${fmtExact(t.amount)}</span></button>`;
+            <span class="txn-amt num ${t.amount < 0 ? 'ok-text' : ''}">${fmtExact(t.amount)}</span></button>`;
         }).join('')}
         </div>`;
     }
@@ -832,8 +836,9 @@ function openEditTxn(id) {
 
 $('#expenseForm').addEventListener('submit', (e) => {
   e.preventDefault();
+  // Negative amounts are refunds/cashback (e.g. imported from a statement).
   const amount = roundMoney(Number($('#fAmount').value));
-  if (!(amount > 0)) { $('#fAmount').focus(); return; }
+  if (!amount) { $('#fAmount').focus(); return; }
   const data = {
     amount,
     categoryId: $('#fCategory').value,

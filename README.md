@@ -29,6 +29,14 @@ A simple record of each calendar month: money in, and how much of it went into i
 - **Pause screen** for anything ₹1,000 or more: "This is X days of your daily allowance. Still buy?"
 - **Fixed costs** (one-time or recurring) count from day one of their cycle. Tap **Mark charged** on Home when one shows up on the card. This logs the actual amount and replaces the expected one.
 - **History:** tap a transaction to edit or delete it. Enter the statement total to see "Logged ₹A vs Statement ₹B, gap ₹C". A 6-cycle bar chart is drawn in inline SVG.
+- **Import from statement** (History tab) logs past spends from statement screenshots:
+  1. Tap **Copy prompt**. The prompt lists your current category names, so Claude uses exactly those.
+  2. Paste the prompt into a Claude chat along with your statement screenshots.
+  3. Copy Claude's table, using the copy button on the reply or by selecting the table. Paste it into the box.
+  4. Review the rows. Rows matching an expense you've already logged (same date and amount) are unticked. Unknown categories are flagged, and you can change any category.
+  5. Tap **Import**. Refunds come in as negative amounts. An imported EMI that matches a pending fixed cost marks that cost as charged. If Claude includes the `STATEMENT_TOTAL` line, the reconcile total is filled in too. You can undo the whole import.
+
+  The importer reads markdown tables, tab-separated text and CSV. Dates can be YYYY-MM-DD, DD/MM/YYYY or "25 Oct 2026".
 - **Settings:** monthly budget, theme, categories, presets, fixed costs, and JSON export/import. A banner reminds you when your last backup is more than 14 days old.
 
 ## Files
@@ -38,6 +46,7 @@ A simple record of each calendar month: money in, and how much of it went into i
 | `index.html` | Page shell, landing page, dialogs, tab bar |
 | `app.js` | Landing page, screen switching, Spend Logger, backup (split into numbered sections) |
 | `invest.js` | Investment Logger |
+| `statement-import.js` | Paste-a-table statement import and the Claude prompt |
 | `styles.css` | Mobile-first styles, light/dark themes |
 | `manifest.json` | PWA install metadata |
 | `service-worker.js` | Offline caching |
