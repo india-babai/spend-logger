@@ -29,6 +29,11 @@ A simple record of each calendar month: money in, and how much of it went into i
 - **Pause screen** for anything ₹1,000 or more: "This is X days of your daily allowance. Still buy?"
 - **Fixed costs** (one-time or recurring) count from day one of their cycle. Tap **Mark charged** on Home when one shows up on the card. This logs the actual amount and replaces the expected one.
 - **History:** tap a transaction to edit or delete it. Enter the statement total to see "Logged ₹A vs Statement ₹B, gap ₹C". A 6-cycle bar chart is drawn in inline SVG.
+- **Sources:** every expense records where it was paid from. The defaults are ICICI Amazon, ICICI Coral, HSBC Live, Swiggy HDFC, KIWI Yesbank, UPI direct and Other, and you can edit them in **Settings → Sources**.
+  - New expenses default to the last source you used.
+  - Each preset can have a fixed source, or follow the last one used.
+  - History shows the source on each expense and a per-source total for the cycle.
+  - A statement import applies one chosen source to all its rows.
 - **Import from statement** (History tab) logs past spends from statement screenshots:
   1. Tap **Copy prompt**. The prompt lists your current category names, so Claude uses exactly those.
   2. Paste the prompt into a Claude chat along with your statement screenshots.

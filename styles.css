@@ -531,6 +531,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
   font-size: 18px;
 }
 .edit-row.cat { grid-template-columns: 1fr 110px 48px; }
+.edit-row.source { grid-template-columns: 1fr 48px; }
 .mini-label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 .settings-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .settings-actions .btn { flex: 1; }
@@ -655,6 +656,7 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 details summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
 details textarea { margin-top: 6px; font-size: 12px; }
 .imp-note { margin: 6px 0; }
+.imp-source { margin-top: 12px; }
 .imp-skipped { font: 12px ui-monospace, Consolas, monospace; overflow-wrap: anywhere; padding: 2px 0; }
 .imp-stmt {
   display: flex;

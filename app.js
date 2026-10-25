@@ -33,6 +33,7 @@ const PAUSE_THRESHOLD = 1000;     // show the pause screen at or above this amou
 const BACKUP_REMINDER_DAYS = 14;  // nag if the last export is older than this
 const LONG_PRESS_MS = 500;
 const FIXED_ID = 'fixed';         // id of the built-in Fixed/EMI category
+const OTHER_SOURCE_ID = 'other';  // id of the built-in "Other" source
 
 function defaultState() {
   const thisCycle = currentKey();
@@ -52,6 +53,17 @@ function defaultState() {
       { id: 'salon', name: 'Salon & other', budget: 500 },
       { id: FIXED_ID, name: 'Fixed/EMI', budget: null }, // null = no cap
     ],
+    // Where the money was spent from (cards / UPI). "Other" can't be deleted.
+    sources: [
+      { id: 'icici-amazon', name: 'ICICI Amazon' },
+      { id: 'icici-coral', name: 'ICICI Coral' },
+      { id: 'hsbc-live', name: 'HSBC Live' },
+      { id: 'swiggy-hdfc', name: 'Swiggy HDFC' },
+      { id: 'kiwi-yes', name: 'KIWI Yesbank' },
+      { id: 'upi-direct', name: 'UPI direct' },
+      { id: OTHER_SOURCE_ID, name: 'Other' },
+    ],
+    // A preset's sourceId '' means "use the last source I logged with".
     presets: [
       { id: 'p-sujata', name: 'Sujata', amount: 70, categoryId: 'snacks' },
       { id: 'p-soumen', name: 'Soumen Foods', amount: 80, categoryId: 'snacks' },
@@ -66,7 +78,7 @@ function defaultState() {
       { id: 'f-emi-final', name: 'Final EMIs (Easy Trip + Pista House, 3 of 3)', amount: 7983, recurring: false, cycle: '2026-10-19' },
       { id: 'f-mobile', name: 'Mobile recharge', amount: 369, recurring: true, startCycle: thisCycle, endCycle: null },
     ],
-    transactions: [], // { id, amount, categoryId, note, date: 'YYYY-MM-DD', createdAt, fixedId? }
+    transactions: [], // { id, amount, categoryId, sourceId, note, date: 'YYYY-MM-DD', createdAt, fixedId? }
     statements: {},   // { [cycleKey]: statement total }
     lastExport: null, // ISO timestamp of last backup
   };
@@ -217,9 +229,11 @@ function loadState() {
 function normalizeState(data) {
   const d = defaultState();
   const s = { ...d, ...data };
-  for (const key of ['categories', 'presets', 'fixedCosts', 'transactions']) {
+  for (const key of ['categories', 'sources', 'presets', 'fixedCosts', 'transactions']) {
     if (!Array.isArray(s[key])) s[key] = d[key];
   }
+  // The "Other" source must always exist.
+  if (!s.sources.some((x) => x.id === OTHER_SOURCE_ID)) s.sources.push({ id: OTHER_SOURCE_ID, name: 'Other' });
   if (!s.statements || typeof s.statements !== 'object') s.statements = {};
   // The Fixed/EMI category must always exist.
   if (!s.categories.some((c) => c.id === FIXED_ID)) {
@@ -302,6 +316,24 @@ function summarize(key) {
 
 function categoryName(id) {
   return state.categories.find((c) => c.id === id)?.name ?? 'Uncategorised';
+}
+
+/** '' for expenses logged before sources existed. */
+function sourceName(id) {
+  return id ? state.sources.find((x) => x.id === id)?.name ?? 'Unknown source' : '';
+}
+
+/** Source of the most recently added expense: the default for new ones. */
+function lastSourceId() {
+  const last = [...state.transactions].reverse().find((t) => t.sourceId);
+  return last?.sourceId ?? state.sources[0]?.id ?? OTHER_SOURCE_ID;
+}
+
+/** <option>s for a source picker. `extra` adds a leading option, e.g. ['', 'Last used']. */
+function sourceOptions(selected, extra = null) {
+  return (extra ? `<option value="${extra[0]}" ${selected === extra[0] ? 'selected' : ''}>${esc(extra[1])}</option>` : '')
+    + state.sources.map((x) =>
+      `<option value="${esc(x.id)}" ${x.id === selected ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
 }
 
 /* ==========================================================================
@@ -546,6 +578,17 @@ function renderHistory() {
       ${renderChart(viewKey)}
     </div>`;
 
+  // Logged spend per source this cycle (biggest first).
+  const bySource = new Map();
+  for (const t of s.txns) bySource.set(t.sourceId || '', (bySource.get(t.sourceId || '') || 0) + t.amount);
+  if (bySource.size) {
+    const rows = [...bySource].sort((a, b) => b[1] - a[1]);
+    html += `<div class="card"><h2>By source</h2>
+      ${rows.map(([id, total]) => `<div class="stat"><span class="stat-label">${esc(sourceName(id) || 'Source not set')}</span>
+        <span class="stat-value num">${fmtExact(roundMoney(total))}</span></div>`).join('')}
+    </div>`;
+  }
+
   // Transactions grouped by day, newest first.
   const txns = [...s.txns].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
   if (!txns.length) {
@@ -563,7 +606,7 @@ function renderHistory() {
         ${list.map((t) => {
           const cat = categoryName(t.categoryId);
           const title = t.note || cat;
-          const sub = [t.note ? cat : '', t.fixedId ? 'fixed cost' : ''].filter(Boolean).join(' · ');
+          const sub = [t.note ? cat : '', sourceName(t.sourceId), t.fixedId ? 'fixed cost' : ''].filter(Boolean).join(' · ');
           return `<button class="txn" data-action="edit-txn" data-id="${esc(t.id)}">
             <span class="txn-main"><span class="txn-title">${esc(title)}</span>
             ${sub ? `<span class="txn-sub">${esc(sub)}</span>` : ''}</span>
@@ -637,7 +680,7 @@ function renderChart(endKey) {
 /* ---------- Settings ---------- */
 
 // Maps a settings row's data-kind to its array in state.
-const COLLECTIONS = { category: 'categories', preset: 'presets', fixed: 'fixedCosts' };
+const COLLECTIONS = { category: 'categories', source: 'sources', preset: 'presets', fixed: 'fixedCosts' };
 
 function categoryOptions(selected) {
   return state.categories.map((c) =>
@@ -670,6 +713,7 @@ function settingsSummaries() {
   return {
     budget: `${fmt(state.budget)} · cycle ${cycleRangeText()}`,
     categories: `${state.categories.length} categories · ${fmt(catTotal)}`,
+    sources: state.sources.map((x) => x.name).join(', '),
     presets: state.presets.length ? state.presets.map((p) => p.name).join(', ') : 'None yet',
     fixed: `${fmt(thisCycleFixed)} this cycle · ${state.fixedCosts.length} in total`,
     backup: `Last export: ${state.lastExport ? fmtLongDate.format(new Date(state.lastExport)) : 'never'}`,
@@ -736,8 +780,19 @@ function renderSettings() {
           <button class="del" data-action="delete-preset" aria-label="Delete ${esc(p.name)}">✕</button>
           <input type="number" inputmode="decimal" min="0" step="0.01" data-field="amount" value="${p.amount}" aria-label="Amount">
           <select class="span-2" data-field="categoryId" aria-label="Category">${categoryOptions(p.categoryId)}</select>
+          <label class="mini-label span-all">Source
+            <select data-field="sourceId">${sourceOptions(p.sourceId || '', ['', 'Last used'])}</select></label>
         </div>`).join('')}
       <div class="settings-actions"><button class="btn" data-action="add-preset">+ Add preset</button></div>`)}
+
+    ${settingsSection('sources', 'Sources (cards & UPI)', `
+      <p class="hint">Where a spend was paid from. Pick one when you add an expense.</p>
+      ${state.sources.map((x) => `
+        <div class="edit-row source" data-kind="source" data-id="${esc(x.id)}">
+          <input type="text" data-field="name" value="${esc(x.name)}" aria-label="Source name">
+          ${x.id === OTHER_SOURCE_ID ? '<span></span>' : `<button class="del" data-action="delete-source" aria-label="Delete ${esc(x.name)}">✕</button>`}
+        </div>`).join('')}
+      <div class="settings-actions"><button class="btn" data-action="add-source">+ Add source</button></div>`)}
 
     ${settingsSection('fixed', 'Fixed costs', `
       <p class="hint">Counted from the first day of their cycle until you mark them charged on Home.</p>
@@ -909,12 +964,16 @@ function defaultDate() {
   return today >= start && today <= end ? today : end;
 }
 
-function openExpenseDialog({ id = null, amount = '', categoryId, note = '', date, fixedId = null } = {}) {
+function openExpenseDialog({ id = null, amount = '', categoryId, sourceId, note = '', date, fixedId = null } = {}) {
   editing = { id, fixedId };
   $('#expenseTitle').textContent = id ? 'Edit expense' : fixedId ? 'Mark fixed cost charged' : 'Add expense';
-  // New expenses default to the most recently used category.
+  // New expenses default to the most recently used category and source.
   const lastCat = state.transactions.at(-1)?.categoryId;
   $('#fCategory').innerHTML = categoryOptions(categoryId || lastCat || state.categories[0]?.id);
+  // Older expenses may have no source; offer "Not set" for those so editing doesn't invent one.
+  $('#fSource').innerHTML = id && !sourceId
+    ? sourceOptions('', ['', 'Not set'])
+    : sourceOptions(sourceId || lastSourceId());
   $('#fAmount').value = amount;
   $('#fNote').value = note;
   $('#fDate').value = date || defaultDate();
@@ -935,6 +994,7 @@ $('#expenseForm').addEventListener('submit', (e) => {
   const data = {
     amount,
     categoryId: $('#fCategory').value,
+    sourceId: $('#fSource').value,
     note: $('#fNote').value.trim(),
     date: $('#fDate').value || todayISO(),
   };
@@ -1029,12 +1089,15 @@ expenseDialog.addEventListener('click', (e) => {
 function quickLog(presetId) {
   const p = state.presets.find((x) => x.id === presetId);
   if (!p) return;
-  requestAdd({ id: uid(), amount: p.amount, categoryId: p.categoryId, note: p.name, date: todayISO(), createdAt: Date.now() });
+  requestAdd({
+    id: uid(), amount: p.amount, categoryId: p.categoryId, sourceId: p.sourceId || lastSourceId(),
+    note: p.name, date: todayISO(), createdAt: Date.now(),
+  });
 }
 
 function editPresetFirst(presetId) {
   const p = state.presets.find((x) => x.id === presetId);
-  if (p) openExpenseDialog({ amount: p.amount, categoryId: p.categoryId, note: p.name, date: todayISO() });
+  if (p) openExpenseDialog({ amount: p.amount, categoryId: p.categoryId, sourceId: p.sourceId, note: p.name, date: todayISO() });
 }
 
 (function setupQuickAdd() {
@@ -1242,8 +1305,19 @@ document.addEventListener('click', (e) => {
       break;
     }
     case 'add-preset':
-      addSettingsItem('preset', { id: uid(), name: 'New preset', amount: 100, categoryId: state.categories[0]?.id });
+      addSettingsItem('preset', { id: uid(), name: 'New preset', amount: 100, categoryId: state.categories[0]?.id, sourceId: '' });
       break;
+    case 'add-source':
+      addSettingsItem('source', { id: uid(), name: 'New source' });
+      break;
+    case 'delete-source': {
+      const srcId = row.dataset.id;
+      const used = state.transactions.filter((t) => t.sourceId === srcId).length
+        + state.presets.filter((p) => p.sourceId === srcId).length;
+      if (used) { alert('This source is used by expenses or presets. Rename it instead.'); break; }
+      deleteSettingsItem('source', srcId, sourceName(srcId));
+      break;
+    }
     case 'delete-preset':
       deleteSettingsItem('preset', row.dataset.id, 'preset');
       break;

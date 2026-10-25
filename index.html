@@ -86,6 +86,9 @@
       <label class="field">Category
         <select id="fCategory"></select>
       </label>
+      <label class="field">Source
+        <select id="fSource"></select>
+      </label>
       <label class="field">Note <span class="muted">(optional)</span>
         <input id="fNote" type="text" maxlength="80" autocomplete="off">
       </label>
@@ -135,6 +138,9 @@
       <p class="hint">Use the copy button on Claude’s reply, or select the table and copy it.</p>
       <textarea id="importText" rows="6" spellcheck="false"
                 placeholder="| Date | Description | Amount | Category |"></textarea>
+      <label class="field imp-source">Source for these rows
+        <select id="importSource"></select>
+      </label>
 
       <div id="importPreview"></div>
 

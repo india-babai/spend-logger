@@ -267,6 +267,8 @@ function openImportDialog() {
   $('#promptText').value = buildStatementPrompt();
   $('#importText').value = '';
   $('#copyStatus').textContent = '';
+  // Which card the statement is from; applied to every imported row.
+  $('#importSource').innerHTML = sourceOptions(lastSourceId());
   importRows = [];
   importSkipped = [];
   importMeta = {};
@@ -293,9 +295,10 @@ function doImport() {
   const chosen = importRows.filter((r) => r.include);
   if (!chosen.length) return;
   const addedIds = [];
+  const sourceId = $('#importSource').value;
 
   for (const r of chosen) {
-    const txn = { id: uid(), amount: r.amount, categoryId: r.categoryId, note: r.note, date: r.date, createdAt: Date.now() };
+    const txn = { id: uid(), amount: r.amount, categoryId: r.categoryId, sourceId, note: r.note, date: r.date, createdAt: Date.now() };
     // An imported EMI/recharge that matches a pending fixed cost (±₹1) marks it as charged,
     // so it isn't counted twice.
     if (txn.categoryId === FIXED_ID) {
