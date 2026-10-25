@@ -2,9 +2,9 @@
 /*
  * Investment Logger — a simple month-wise record of where income goes.
  *
- * Each entry belongs to a calendar month and is one of three types:
- *   income  (Salary 2.5L)   invest  (Groww SIP 80k)   save  (FD 20k)
- * The month screen shows income split into invested / saved / left over,
+ * Each entry belongs to a calendar month and is one of four types:
+ *   income  (Salary 2.5L)   invest  (Groww SIP 80k)   save  (FD 20k)   bills  (Rent 25k)
+ * The month screen shows income split into invested / saved / bills / left over,
  * plus a 6-month chart and a financial-year (Apr–Mar) summary.
  *
  * Loaded after app.js and reuses its helpers ($, esc, uid, fmt, fmtExact,
@@ -21,6 +21,7 @@ const INVEST_TYPES = {
   income: { label: 'Income', group: 'Income', suggestions: ['Salary', 'Bonus', 'Interest', 'Freelance'] },
   invest: { label: 'Investment', group: 'Investments', suggestions: ['Groww SIP', 'IndMoney', 'PPF', 'NPS', 'Stocks'] },
   save: { label: 'Savings', group: 'Savings', suggestions: ['FD', 'RD', 'Emergency fund', 'Savings account'] },
+  bills: { label: 'Bills', group: 'Bills', suggestions: ['Credit card bill', 'Rent', 'Electricity', 'Home loan EMI', 'Insurance'] },
 };
 
 let investState = loadInvest();  // { version, entries: [{ id, month: 'YYYY-MM', type, name, amount, note, createdAt }] }
@@ -90,15 +91,17 @@ function fmtLakh(n) {
 
 /* ---------- Calculations ---------- */
 
-/** Totals for a list of entries. `rate` = share of income invested or saved. */
+/** Totals for a list of entries. `rate` = share of income invested or saved (bills don't count). */
 function totals(entries) {
   const by = (type) => sumAmounts(entries.filter((e) => e.type === type));
   const income = by('income');
   const invested = by('invest');
   const saved = by('save');
+  const bills = by('bills');
   return {
-    entries, income, invested, saved,
-    remaining: roundMoney(income - invested - saved),
+    entries, income, invested, saved, bills,
+    outflow: roundMoney(invested + saved + bills),
+    remaining: roundMoney(income - invested - saved - bills),
     rate: income > 0 ? ((invested + saved) / income) * 100 : null,
   };
 }
@@ -107,14 +110,15 @@ const monthSummary = (month) => totals(investState.entries.filter((e) => e.month
 
 const pct = (part, whole) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : '');
 
-/** Invested / saved / left-over split bar. Scaled to income (or to outflow if that's bigger). */
+/** Invested / saved / bills / left-over split bar. Scaled to income (or to outflow if that's bigger). */
 function splitBar(s, extraClass = '') {
-  const base = Math.max(s.income, s.invested + s.saved);
+  const base = Math.max(s.income, s.outflow);
   if (!base) return `<div class="split-bar ${extraClass}"></div>`;
   const w = (v) => `${(Math.max(0, v) / base) * 100}%`;
   return `<div class="split-bar ${extraClass}" aria-hidden="true">
     <span class="seg invest" style="width:${w(s.invested)}"></span>
-    <span class="seg save" style="width:${w(s.saved)}"></span></div>`;
+    <span class="seg save" style="width:${w(s.saved)}"></span>
+    <span class="seg bills" style="width:${w(s.bills)}"></span></div>`;
 }
 
 /** One-line summary + bar for the landing page. */
@@ -144,7 +148,7 @@ function renderInvest() {
   let html = '';
 
   // 1. Where the income went
-  const leftLabel = s.remaining >= 0 ? 'Left for spending' : 'More than income by';
+  const leftLabel = s.remaining >= 0 ? 'Left over' : 'More than income by';
   html += `
     <div class="card">
       <div class="card-head">
@@ -157,6 +161,8 @@ function renderInvest() {
         <span class="num">${fmt(s.invested)}</span><span class="pct num">${pct(s.invested, s.income)}</span></div>
       <div class="legend-row"><span class="dot save"></span><span class="grow">Saved</span>
         <span class="num">${fmt(s.saved)}</span><span class="pct num">${pct(s.saved, s.income)}</span></div>
+      <div class="legend-row"><span class="dot bills"></span><span class="grow">Bills</span>
+        <span class="num">${fmt(s.bills)}</span><span class="pct num">${pct(s.bills, s.income)}</span></div>
       <div class="legend-row"><span class="dot rest"></span><span class="grow">${leftLabel}</span>
         <span class="num ${s.remaining < 0 ? 'warn-text' : ''}">${fmt(Math.abs(s.remaining))}</span>
         <span class="pct num">${s.remaining >= 0 ? pct(s.remaining, s.income) : ''}</span></div>
@@ -184,6 +190,7 @@ function renderInvest() {
     html += `<div class="card empty">Nothing logged for ${esc(monthLabel(investMonth))} yet.<br>
       Tap <strong>+ Add</strong> to log your salary, SIPs and savings.</div>`;
   }
+  if (s.entries.length) html += `<p class="hint list-hint">Tap an entry to edit or delete it.</p>`;
   for (const [type, info] of Object.entries(INVEST_TYPES)) {
     const list = s.entries.filter((e) => e.type === type).sort((a, b) => b.amount - a.amount);
     if (!list.length) continue;
@@ -193,7 +200,8 @@ function renderInvest() {
           <span class="dot ${type}"></span>
           <span class="txn-main"><span class="txn-title">${esc(e.name)}</span>
           ${e.note ? `<span class="txn-sub">${esc(e.note)}</span>` : ''}</span>
-          <span class="txn-amt num">${fmtExact(e.amount)}</span></button>`).join('')}
+          <span class="txn-amt num">${fmtExact(e.amount)}</span>
+          <span class="txn-chev" aria-hidden="true">›</span></button>`).join('')}
       </div>`;
   }
 
@@ -212,6 +220,7 @@ function renderInvest() {
         <span class="stat-value num">${fmt(y.income)}</span></div>
       <div class="stat"><span class="stat-label">Invested</span><span class="stat-value num">${fmt(y.invested)}</span></div>
       <div class="stat"><span class="stat-label">Saved</span><span class="stat-value num">${fmt(y.saved)}</span></div>
+      <div class="stat"><span class="stat-label">Bills</span><span class="stat-value num">${fmt(y.bills)}</span></div>
       <div class="stat"><span class="stat-label">Put away</span>
         <span class="stat-value num">${y.rate != null ? `${Math.round(y.rate)}%` : '—'}</span></div>
     </div>`;
@@ -222,7 +231,7 @@ function renderInvest() {
 /** Entries count as "the same" across months if type and name match. */
 const entryKey = (e) => `${e.type}|${e.name.trim().toLowerCase()}`;
 
-/** Inline SVG: income as a pale bar, invested + saved stacked inside it. */
+/** Inline SVG: income as a pale bar, invested + saved + bills stacked inside it. */
 function renderInvestChart(endMonth) {
   const months = [];
   for (let i = 5; i >= 0; i--) months.push(shiftMonth(endMonth, -i));
@@ -230,7 +239,7 @@ function renderInvestChart(endMonth) {
 
   const W = 340, H = 190, top = 22, bottom = 26, side = 6;
   const plotH = H - top - bottom;
-  const max = Math.max(1, ...data.map((d) => Math.max(d.income, d.invested + d.saved))) * 1.08;
+  const max = Math.max(1, ...data.map((d) => Math.max(d.income, d.outflow))) * 1.08;
   const slot = (W - side * 2) / data.length;
   const barW = slot * 0.58;
   const h = (v) => (v / max) * plotH;
@@ -240,7 +249,7 @@ function renderInvestChart(endMonth) {
   data.forEach((d, i) => {
     const x = side + slot * i + slot / 2 - barW / 2;
     const cx = x + barW / 2;
-    const hi = h(d.income), hv = h(d.invested), hs = h(d.saved);
+    const hi = h(d.income), hv = h(d.invested), hs = h(d.saved), hb = h(d.bills);
     const selected = d.month === endMonth ? ' bar-selected' : '';
     svg += `<rect class="inc-bar${selected}" x="${x}" y="${base - hi}" width="${barW}" height="${hi}" rx="4">
       <title>${monthLabel(d.month)}: income ${fmt(d.income)}</title></rect>`;
@@ -248,18 +257,21 @@ function renderInvestChart(endMonth) {
       <title>Invested ${fmt(d.invested)}</title></rect>`;
     svg += `<rect class="sav-bar" x="${x}" y="${base - hv - hs}" width="${barW}" height="${hs}">
       <title>Saved ${fmt(d.saved)}</title></rect>`;
+    svg += `<rect class="bill-bar" x="${x}" y="${base - hv - hs - hb}" width="${barW}" height="${hb}">
+      <title>Bills ${fmt(d.bills)}</title></rect>`;
     if (d.rate != null) {
-      const topY = base - Math.max(hi, hv + hs);
+      const topY = base - Math.max(hi, hv + hs + hb);
       svg += `<text class="value-label" x="${cx}" y="${topY - 5}" text-anchor="middle">${Math.round(d.rate)}%</text>`;
     }
     svg += `<text class="axis-label" x="${cx}" y="${H - 8}" text-anchor="middle">${monthName(d.month)}</text>`;
   });
 
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income, invested and saved for the last 6 months">${svg}</svg>
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income, invested, saved and bills for the last 6 months">${svg}</svg>
     <div class="chart-legend">
       <span><span class="dot income"></span>Income</span>
       <span><span class="dot invest"></span>Invested</span>
       <span><span class="dot save"></span>Saved</span>
+      <span><span class="dot bills"></span>Bills</span>
     </div>
     <p class="hint">The % above each bar is the share of income invested or saved.</p>`;
 }

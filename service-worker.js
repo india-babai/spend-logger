@@ -5,10 +5,14 @@
  * cache straight away (fast, works offline), and in the background the file
  * is re-fetched so the next launch picks up any update you deployed.
  *
+ * Every fetch skips the browser's HTTP cache (GitHub Pages lets files be
+ * cached for 10 minutes). Otherwise, right after a deploy, the cache could
+ * mix an old index.html with a new app.js and break the app.
+ *
  * Bump CACHE_VERSION if you add/rename files in ASSETS, so old caches are
  * cleaned up.
  */
-const CACHE_VERSION = 'spendlogger-v3';
+const CACHE_VERSION = 'spendlogger-v4';
 
 const ASSETS = [
   './',
@@ -28,7 +32,7 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then((cache) => cache.addAll(ASSETS))
+      .then((cache) => cache.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -51,7 +55,8 @@ self.addEventListener('fetch', (event) => {
     const cache = await caches.open(CACHE_VERSION);
     const cached = await cache.match(req, { ignoreSearch: true });
 
-    const network = fetch(req)
+    // A fresh Request by URL (a page-load request can't be copied with options).
+    const network = fetch(new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }))
       .then((res) => {
         if (res.ok) cache.put(req, res.clone());
         return res;

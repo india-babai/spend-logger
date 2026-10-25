@@ -594,6 +594,7 @@ function renderHistory() {
   if (!txns.length) {
     html += `<div class="card empty">No expenses logged in this cycle.</div>`;
   } else {
+    html += `<p class="hint list-hint">Tap an expense to edit or delete it.</p>`;
     const days = new Map();
     for (const t of txns) {
       if (!days.has(t.date)) days.set(t.date, []);
@@ -610,7 +611,8 @@ function renderHistory() {
           return `<button class="txn" data-action="edit-txn" data-id="${esc(t.id)}">
             <span class="txn-main"><span class="txn-title">${esc(title)}</span>
             ${sub ? `<span class="txn-sub">${esc(sub)}</span>` : ''}</span>
-            <span class="txn-amt num ${t.amount < 0 ? 'ok-text' : ''}">${fmtExact(t.amount)}</span></button>`;
+            <span class="txn-amt num ${t.amount < 0 ? 'ok-text' : ''}">${fmtExact(t.amount)}</span>
+            <span class="txn-chev" aria-hidden="true">›</span></button>`;
         }).join('')}
         </div>`;
     }

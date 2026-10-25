@@ -10,8 +10,12 @@ The app opens on a landing page with two big buttons, one for each logger. Each 
 
 A simple record of each calendar month: money in, and how much of it went into investments and savings.
 
-- **Entry types:** each entry is **Income** (e.g. Salary ₹2,50,000), **Investment** (e.g. Groww SIP ₹80,000, IndMoney ₹50,000) or **Savings** (e.g. FD, RD, emergency fund).
-- **Month summary:** total income, with a split bar and the amount and percentage invested, saved, and left for spending. A pill shows the share of income put away.
+- **Entry types:** each entry is one of four types:
+  - **Income**, e.g. Salary ₹2,50,000
+  - **Investment**, e.g. Groww SIP ₹80,000, IndMoney ₹50,000
+  - **Savings**, e.g. FD, RD, emergency fund
+  - **Bills**, e.g. credit card bill, rent, electricity, home loan EMI
+- **Month summary:** total income, with a split bar and the amount and percentage invested, saved, paid in bills, and left over. A pill shows the share of income put away (invested + saved; bills don't count).
 - **"From last month" chips:** last month's entries that aren't logged yet this month. Tap one to log it again, or use **Add all**. Every log has an undo toast.
 - **Add sheet:** pick a type, then a name (suggestions include names you've used before). Choosing a name you've used before fills in its last amount. A hint under the amount shows it in lakh, e.g. ₹2.5L.
 - **Charts and totals:** a 6-month bar chart (income, with invested and saved stacked inside) and totals for the Indian financial year (Apr–Mar) so far.
