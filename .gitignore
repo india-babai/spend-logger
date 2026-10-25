@@ -7,4 +7,5 @@ spend-logger-backup-*.json
 .DS_Store
 Thumbs.db
 .vscode/
+.idea/
 .claude/
