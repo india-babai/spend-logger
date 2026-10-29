@@ -24,6 +24,10 @@
   --invest-2: #9aa5d6;   /* "saved" shade */
   --invest-soft: #eceef7;
   --invest-text: #ffffff;
+  /* Lending Tracker palette: muted plum */
+  --lend: #7b4f6b;
+  --lend-soft: #f4edf2;
+  --lend-text: #ffffff;
   --bills: #b8926a;      /* Investment Logger "bills": muted tan */
   color-scheme: light;
 }
@@ -50,6 +54,9 @@
     --invest-2: #4b5699;
     --invest-soft: #1a1f36;
     --invest-text: #0b0f24;
+    --lend: #d29bbd;
+    --lend-soft: #2a1d26;
+    --lend-text: #1f0f19;
     --bills: #8c6d4f;
     color-scheme: dark;
   }
@@ -75,11 +82,19 @@
   --invest-2: #4b5699;
   --invest-soft: #1a1f36;
   --invest-text: #0b0f24;
+  --lend: #d29bbd;
+  --lend-soft: #2a1d26;
+  --lend-text: #1f0f19;
   --bills: #8c6d4f;
   color-scheme: dark;
 }
 
 /* Inside the Investment Logger, buttons and highlights use the invest palette. */
+body[data-mode="lend"] {
+  --accent: var(--lend);
+  --accent-soft: var(--lend-soft);
+  --accent-text: var(--lend-text);
+}
 body[data-mode="invest"] {
   --accent: var(--invest);
   --accent-soft: var(--invest-soft);
@@ -357,6 +372,7 @@ main {
 .launch:active { transform: scale(.98); }
 .launch.spend { background: var(--accent-soft); }
 .launch.invest { background: var(--invest-soft); }
+.launch.lend { background: var(--lend-soft); min-height: 132px; }
 .launch-icon {
   width: 48px;
   height: 48px;
@@ -367,6 +383,7 @@ main {
 }
 .launch.spend .launch-icon { background: var(--accent); color: var(--accent-text); }
 .launch.invest .launch-icon { background: var(--invest); color: var(--invest-text); }
+.launch.lend .launch-icon { background: var(--lend); color: var(--lend-text); }
 .launch-icon svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .launch-title { font-size: 22px; font-weight: 700; }
 .launch-sub { font-size: 14px; color: var(--muted); }
@@ -460,10 +477,70 @@ main {
 
 /* No tab bar outside the Spend Logger, so tighten the bottom spacing. */
 body[data-mode="landing"] { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
-body[data-mode="invest"] { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-body[data-mode="invest"] .fab { bottom: calc(20px + env(safe-area-inset-bottom)); }
-body[data-mode="invest"] .toast { bottom: calc(88px + env(safe-area-inset-bottom)); }
+body[data-mode="invest"], body[data-mode="lend"] { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+body[data-mode="invest"] .fab, body[data-mode="lend"] .fab { bottom: calc(20px + env(safe-area-inset-bottom)); }
+body[data-mode="invest"] .toast, body[data-mode="lend"] .toast { bottom: calc(88px + env(safe-area-inset-bottom)); }
 body[data-mode="landing"] .toast { bottom: calc(20px + env(safe-area-inset-bottom)); }
+
+/* ---- Lending Tracker ---- */
+.segmented.two { grid-template-columns: repeat(2, 1fr); }
+.segmented.two span { font-size: 15px; }
+.lend-text { color: var(--lend); }
+.lend-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.lend-totals > div { display: flex; flex-direction: column; gap: 2px; }
+.lend-totals strong { font-size: 17px; }
+.lend-search { margin: 4px 0 2px; }
+.person-row { color: var(--text); text-decoration: none; }
+.person-row[hidden] { display: none; }
+.avatar {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--track);
+  color: var(--muted);
+}
+.avatar.owes { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.avatar.overdue { background: color-mix(in srgb, var(--over) 18%, transparent); color: var(--over); }
+.avatar.iowe { background: var(--lend-soft); color: var(--lend); }
+.avatar.settled { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.avatar.big { width: 56px; height: 56px; font-size: 19px; }
+.settled-group > summary { list-style: none; cursor: pointer; }
+.settled-group > summary::-webkit-details-marker { display: none; }
+.person-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.person-id { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.person-name { font-size: 20px; margin: 0; overflow-wrap: anywhere; }
+.pill.status-owes { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+.pill.status-overdue, .pill-over { background: color-mix(in srgb, var(--over) 15%, transparent); color: var(--over); }
+.pill.status-iowe { background: var(--lend-soft); color: var(--lend); }
+.pill.status-settled { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.pill.status-none { background: var(--track); color: var(--muted); }
+.lend-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0 10px; }
+.flow {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+.flow.out { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+.flow.in { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.txn-bal { font-size: 12px; color: var(--muted); white-space: nowrap; text-align: right; }
+.person-manage { justify-content: center; margin-top: 20px; }
+.person-manage .btn { flex: 0 1 auto; }
 
 /* ---- Settings: collapsible sections ---- */
 .settings-intro { margin: 4px 4px 10px; }

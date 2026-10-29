@@ -1,10 +1,30 @@
 # Money Log
 
-A personal money tracker with two parts: a **Spend Logger** for credit card spending and an **Investment Logger** that shows where each month's income goes. It is a static PWA: plain HTML, CSS and JavaScript with no framework, no build step and no backend. It installs to your phone's home screen and works fully offline.
+A personal money tracker with three parts: a **Spend Logger** for credit card spending, an **Investment Logger** that shows where each month's income goes, and a **Lending Tracker** for money lent to people. It is a static PWA: plain HTML, CSS and JavaScript with no framework, no build step and no backend. It installs to your phone's home screen and works fully offline.
 
-The app opens on a landing page with two big buttons, one for each logger. Each button shows a one-line summary of the current cycle or month. Use **‹** at the top, or the phone's back button, to return to the landing page.
+The app opens on a landing page with a big button for each part. Each button shows a one-line summary of the current cycle or month. Use **‹** at the top, or the phone's back button, to return to the landing page.
 
 **Your data never leaves your phone.** Everything is stored in the browser's `localStorage` on the device. Nothing is sent anywhere, and nothing personal is in this repo. Use **Settings → Backup** to export a JSON file now and then.
+
+## Lending Tracker
+
+A record of money you lend to friends and family, and get back, per person.
+
+- **Recording money:** each entry is either **I gave** (money lent or paid to them) or **I received** (money paid back), with a date and an optional note. A loan can also have an optional **expected back by** date.
+- **Balance and status:** each person's balance is what they've been given minus what they've paid back. Their status is one of:
+  - **Owes you**
+  - **Overdue**, when an expected-back-by date has passed and that money is still unpaid
+  - **Settled**
+  - **You owe**, when they've paid back more than they were given
+- **Which loan a repayment covers:** repayments pay off the oldest money first. That is how the app works out "outstanding since" and whether a person is overdue.
+- **People list:** the total owed to you, how many people owe you, and lifetime given/received totals. People are grouped into **Owe you** (overdue first), **You owe**, and a collapsible **Settled**. A search box appears once you have more than five people.
+- **A person's page:**
+  - balance and status
+  - **I gave** and **I received** buttons, plus **Settle up**, which pre-fills the exact balance
+  - total given, total received, outstanding since and expected-back-by date
+  - full history with the balance after each entry. Tap an entry to edit or delete it.
+  - rename or delete the person
+- **Adding people:** pick "＋ New person…" when recording money. Every save and delete can be undone.
 
 ## Investment Logger
 
@@ -55,6 +75,7 @@ A simple record of each calendar month: money in, and how much of it went into i
 | `index.html` | Page shell, landing page, dialogs, tab bar |
 | `app.js` | Landing page, screen switching, Spend Logger, backup (split into numbered sections) |
 | `invest.js` | Investment Logger |
+| `lend.js` | Lending Tracker |
 | `statement-import.js` | Paste-a-table statement import and the Claude prompt |
 | `styles.css` | Mobile-first styles, light/dark themes |
 | `manifest.json` | PWA install metadata |
@@ -113,7 +134,7 @@ Push your changes. The service worker serves the cached version first and fetche
 
 - `localStorage` belongs to the browser and site. Uninstalling the app or clearing site data **deletes everything**, so export a backup regularly. The app reminds you after 14 days.
 - On Android, **Share…** sends the backup straight to Google Drive, email and so on. **Export JSON** downloads it.
-- One backup file holds both loggers. You can export and import from the landing page or from Spend Logger → Settings.
+- One backup file holds all three: Spend Logger, Investment Logger and Lending Tracker. You can export and import from the landing page or from Spend Logger → Settings.
 - To restore, use **Import** and pick the JSON file. This replaces all current data. An older backup with no investment data leaves your investment entries as they are.
 - `.gitignore` excludes `*backup*.json` so a backup can't be committed to the public repo by accident.
 - The app's data lives under the GitHub Pages URL. If you rename the repo or change the URL, export first and import again at the new address.

@@ -5,7 +5,8 @@
  * Plain JS, no build step. All data lives in this browser's localStorage.
  *
  * Screens ("modes") are picked by the URL hash: '' = landing page,
- * '#spend' = Spend Logger, '#invest' = Investment Logger. Using the hash
+ * '#spend' = Spend Logger, '#invest' = Investment Logger, '#lend' and
+ * '#lend/<personId>' = Lending Tracker (lend.js). Using the hash
  * means the phone's back button returns to the landing page.
  *
  * Sections:
@@ -341,14 +342,37 @@ function sourceOptions(selected, extra = null) {
    ========================================================================== */
 
 let mode = 'landing';             // 'landing' | 'spend' | 'invest'
-let enteredFromLanding = false;   // so the back link can use history.back()
+
+// The hashes visited in this session, mirroring the browser history, so "‹"
+// can step back to the right screen (and the phone's back button stays in step).
+const hashStack = [location.hash];
+let replacingHash = false;  // next hashchange replaced the current entry
+let jumpTarget = null;      // index in hashStack a history.go() is heading to
+
+/** Change the hash without adding a history entry. '#' = landing page. */
+function replaceHash(hash) {
+  replacingHash = true;
+  location.replace(hash);
+}
+
+/** Go back to the most recent visited screen matching `isTarget`, else replace with `fallback`. */
+function goBackTo(isTarget, fallback) {
+  for (let i = hashStack.length - 2; i >= 0; i--) {
+    if (isTarget(hashStack[i])) {
+      jumpTarget = i;
+      history.go(i - (hashStack.length - 1));
+      return;
+    }
+  }
+  replaceHash(fallback);
+}
 let currentTab = 'home';
 let viewKey = currentKey();       // the cycle being viewed
 let knownCurrent = currentKey();  // to notice when the app is reopened in a new cycle
 
 function modeFromHash() {
-  const h = location.hash.slice(1);
-  return h === 'spend' || h === 'invest' ? h : 'landing';
+  const base = location.hash.slice(1).split('/')[0]; // '#lend/<personId>' → 'lend'
+  return ['spend', 'invest', 'lend'].includes(base) ? base : 'landing';
 }
 
 function render() {
@@ -360,11 +384,13 @@ function render() {
   // Which big pieces are visible in this mode
   $('#view-landing').hidden = mode !== 'landing';
   $('#view-invest').hidden = mode !== 'invest';
+  $('#view-lend').hidden = mode !== 'lend';
   $('#topbar').hidden = mode === 'landing';
   $('#spendTabbar').hidden = !isSpend;
   $('#monthNav').hidden = mode !== 'invest';
-  $('#modeTitle').textContent = mode === 'invest' ? 'Investment Logger' : 'Spend Logger';
+  $('#modeTitle').textContent = { invest: 'Investment Logger', lend: 'Lending Tracker' }[mode] ?? 'Spend Logger';
   $('#fab').hidden = mode === 'landing' || (isSpend && isSettings);
+  $('#fab').textContent = mode === 'lend' ? '+ Record' : '+ Add';
   for (const tab of ['home', 'history', 'settings']) {
     $(`#view-${tab}`).hidden = !isSpend || tab !== currentTab;
   }
@@ -378,6 +404,11 @@ function render() {
     $('#cycleNav').hidden = true;
     $('#pageTitle').hidden = true;
     return renderInvest(); // invest.js
+  }
+  if (mode === 'lend') {
+    $('#cycleNav').hidden = true;
+    $('#pageTitle').hidden = true;
+    return renderLend(); // lend.js
   }
 
   // Spend Logger header
@@ -407,7 +438,7 @@ function bar(spent, cap, extraClass = '') {
 
 function renderBanner() {
   const el = $('#backupBanner');
-  const hasData = state.transactions.length > 0 || investState.entries.length > 0;
+  const hasData = state.transactions.length > 0 || investState.entries.length > 0 || lendState.entries.length > 0;
   const daysSince = state.lastExport ? Math.floor((Date.now() - new Date(state.lastExport)) / DAY_MS) : null;
   const overdue = hasData && (daysSince === null || daysSince > BACKUP_REMINDER_DAYS);
   el.hidden = !overdue;
@@ -447,6 +478,14 @@ function renderLanding() {
       <span class="launch-title">Investment Logger</span>
       <span class="launch-sub num">${inv.text}</span>
       ${inv.barHtml}
+      <span class="launch-chev" aria-hidden="true">›</span>
+    </a>
+
+    <a class="launch lend" href="#lend">
+      <span class="launch-icon"><svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 8h14l-3-3"/><path d="M20 16H6l3 3"/></svg></span>
+      <span class="launch-title">Lending Tracker</span>
+      <span class="launch-sub num">${esc(lendLandingInfo())}</span>
       <span class="launch-chev" aria-hidden="true">›</span>
     </a>
 
@@ -1180,7 +1219,7 @@ function hideToast() {
 
 /** One file with both loggers: the spend data at the top level (as before) plus `invest`. */
 function backupFile() {
-  const data = { ...state, invest: investState, exportedAt: new Date().toISOString() };
+  const data = { ...state, invest: investState, lend: lendState, exportedAt: new Date().toISOString() };
   const name = `spend-logger-backup-${todayISO()}.json`;
   return new File([JSON.stringify(data, null, 2)], name, { type: 'application/json' });
 }
@@ -1230,17 +1269,21 @@ $('#importFile').addEventListener('change', async (e) => {
     const when = data.exportedAt ? fmtLongDate.format(new Date(data.exportedAt)) : 'an unknown date';
     const investCount = data.invest?.entries?.length;
     const contents = plural(data.transactions.length, 'transaction')
-      + (investCount != null ? `, ${investCount} investment ${investCount === 1 ? 'entry' : 'entries'}` : '');
+      + (investCount != null ? `, ${investCount} investment ${investCount === 1 ? 'entry' : 'entries'}` : '')
+      + (data.lend ? `, ${data.lend.entries?.length ?? 0} lending ${data.lend.entries?.length === 1 ? 'entry' : 'entries'}` : '');
     const ok = confirm(`Replace current data with the backup from ${when} (${contents})?`);
     if (!ok) return;
     const invest = data.invest;
+    const lend = data.lend;
     delete data.exportedAt;
     delete data.invest;
+    delete data.lend;
     state = normalizeState(data);
     cycleStartDay = state.cycleStartDay;
     save();
     // Older backups have no investment data — keep what's on the phone then.
     if (invest) setInvestState(invest); // invest.js
+    if (lend) setLendState(lend);       // lend.js
     applyTheme();
     viewKey = currentKey();
     render();
@@ -1281,11 +1324,15 @@ document.addEventListener('click', (e) => {
     case 'prev-cycle': viewKey = shiftCycle(viewKey, -1); render(); break;
     case 'next-cycle': if (viewKey < currentKey()) { viewKey = shiftCycle(viewKey, 1); render(); } break;
     case 'current-cycle': viewKey = currentKey(); render(); break;
-    case 'add': if (mode === 'invest') openInvestDialog(); else openExpenseDialog(); break;
+    case 'add':
+      if (mode === 'invest') openInvestDialog();
+      else if (mode === 'lend') openLendDialog();
+      else openExpenseDialog();
+      break;
     case 'go-landing':
-      // Prefer real "back" so the history stays tidy; fall back to clearing the hash.
-      if (enteredFromLanding) history.back();
-      else { history.replaceState(null, '', location.pathname + location.search); mode = 'landing'; render(); }
+      // On a Lending Tracker person, "back" goes to the people list instead.
+      if (mode === 'lend' && lendBack()) break;
+      goBackTo((h) => h === '' || h === '#', '#');
       break;
     case 'close-dialog': el.closest('dialog').close(); break;
     case 'undo': { const fn = toastUndo; hideToast(); fn?.(); break; }
@@ -1372,19 +1419,28 @@ document.addEventListener('visibilitychange', () => {
 
 // Switch screens when the hash changes (landing links, back button).
 window.addEventListener('hashchange', () => {
+  // Keep hashStack in step with the browser history.
+  if (replacingHash) hashStack[hashStack.length - 1] = location.hash;
+  else if (jumpTarget != null) hashStack.length = jumpTarget + 1;
+  else if (hashStack.length > 1 && hashStack[hashStack.length - 2] === location.hash) hashStack.pop(); // back
+  else hashStack.push(location.hash);
+  replacingHash = false;
+  jumpTarget = null;
+
   const next = modeFromHash();
-  enteredFromLanding = mode === 'landing' && next !== 'landing';
+  // Only a change of screen counts (not '#lend' → '#lend/<person>').
+  const changedMode = next !== mode;
   mode = next;
   if (mode === 'spend') currentTab = 'home';
   for (const d of document.querySelectorAll('dialog[open]')) d.close();
-  hideToast();
+  if (changedMode) hideToast(); // keep e.g. "Deleted Rahul · Undo" when returning to the people list
   window.scrollTo(0, 0);
   render();
 });
 
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
-// Start once invest.js has loaded too (it runs right after this file).
+// Start once invest.js and lend.js have loaded too (they run right after this file).
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
   save(); // writes seed data on first run

@@ -50,6 +50,9 @@
     <!-- Investment Logger (single month-wise page, see invest.js) -->
     <section id="view-invest" class="view" aria-label="Investment Logger" hidden></section>
 
+    <!-- Lending Tracker: list of people or one person (see lend.js) -->
+    <section id="view-lend" class="view" aria-label="Lending Tracker" hidden></section>
+
     <!-- Spend Logger tabs -->
     <section id="view-home" class="view" aria-label="Home" hidden></section>
     <section id="view-history" class="view" aria-label="History" hidden></section>
@@ -150,6 +153,40 @@
     </div>
   </dialog>
 
+  <!-- Lending Tracker: record / edit money given or received -->
+  <dialog id="lendDialog" class="sheet">
+    <form id="lendForm" novalidate>
+      <h2 id="lendTitle">Record money</h2>
+      <div class="segmented two" role="radiogroup" aria-label="Direction">
+        <label><input type="radio" name="lendType" value="gave"><span>I gave</span></label>
+        <label><input type="radio" name="lendType" value="received"><span>I received</span></label>
+      </div>
+      <label class="field">Person
+        <select id="lPerson"></select>
+      </label>
+      <label class="field" id="lNewWrap">New person’s name
+        <input id="lNewName" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Rahul">
+      </label>
+      <label class="field">Amount (₹)
+        <input id="lAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0">
+      </label>
+      <label class="field">Date
+        <input id="lDate" type="date">
+      </label>
+      <label class="field" id="lDueWrap">Expected back by <span class="muted">(optional)</span>
+        <input id="lDue" type="date">
+      </label>
+      <label class="field">Note <span class="muted">(optional)</span>
+        <input id="lNote" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Hospital bill, trip share">
+      </label>
+      <div class="btn-row">
+        <button type="button" class="btn danger" id="lDelete" hidden>Delete</button>
+        <button type="button" class="btn" data-action="close-dialog">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Investment Logger: add / edit entry sheet -->
   <dialog id="investDialog" class="sheet">
     <form id="investForm" novalidate>
@@ -186,6 +223,7 @@
 
   <script src="app.js"></script>
   <script src="invest.js"></script>
+  <script src="lend.js"></script>
   <script src="statement-import.js"></script>
 </body>
 </html>
