@@ -1,10 +1,28 @@
 # Money Log
 
-A personal money tracker with three parts: a **Spend Logger** for credit card spending, an **Investment Logger** that shows where each month's income goes, and a **Lending Tracker** for money lent to people. It is a static PWA: plain HTML, CSS and JavaScript with no framework, no build step and no backend. It installs to your phone's home screen and works fully offline.
+A personal money tracker with four parts: a **Spend Logger** for credit card spending, an **Investment Logger** that shows where each month's income goes, a **Lending Tracker** for money lent to people, and **Life Savings** for your and your mom's overall savings. It is a static PWA: plain HTML, CSS and JavaScript with no framework, no build step and no backend. It installs to your phone's home screen and works fully offline.
 
 The app opens on a landing page with a big button for each part. Each button shows a one-line summary of the current cycle or month. Use **‹** at the top, or the phone's back button, to return to the landing page.
 
 **Your data never leaves your phone.** Everything is stored in the browser's `localStorage` on the device. Nothing is sent anywhere, and nothing personal is in this repo. Use **Settings → Backup** to export a JSON file now and then.
+
+## Life Savings
+
+Your overall savings, for yourself and for Mom, on two tabs: **Mine** and **Mom**.
+
+- **Holdings:** each tab has a list of holdings (PPF, PF, mutual funds, bank FDs, Post Office…), grouped by a label you choose, such as "Retirement" or "SBI".
+- **Parts:** a holding can be split into parts, such as the individual FDs inside "Bank FD". It is then worth the sum of its parts.
+- **Snapshots:** tap **Update values** every so often and enter what each holding is worth on that date. This is a snapshot, like a dated column in a spreadsheet. The form is pre-filled with the last values, so you only change what moved.
+- **What each tab shows:**
+  - the latest total and the change since the previous snapshot
+  - an allocation bar by group
+  - each holding with its change
+  - a growth chart
+  - the list of snapshots. Tap a snapshot to correct or delete it.
+- **Edit holdings:** rename the tab, and add, rename, regroup or delete holdings and parts.
+- **Import savings file:** loads a savings-only file, or the savings part of a full backup. It replaces only Life Savings data.
+
+**The app ships with generic holding names and no numbers.** Real values exist only on your phone and in your own backup files.
 
 ## Lending Tracker
 
@@ -76,6 +94,7 @@ A simple record of each calendar month: money in, and how much of it went into i
 | `app.js` | Landing page, screen switching, Spend Logger, backup (split into numbered sections) |
 | `invest.js` | Investment Logger |
 | `lend.js` | Lending Tracker |
+| `savings.js` | Life Savings |
 | `statement-import.js` | Paste-a-table statement import and the Claude prompt |
 | `styles.css` | Mobile-first styles, light/dark themes |
 | `manifest.json` | PWA install metadata |
@@ -134,7 +153,7 @@ Push your changes. The service worker serves the cached version first and fetche
 
 - `localStorage` belongs to the browser and site. Uninstalling the app or clearing site data **deletes everything**, so export a backup regularly. The app reminds you after 14 days.
 - On Android, **Share…** sends the backup straight to Google Drive, email and so on. **Export JSON** downloads it.
-- One backup file holds all three: Spend Logger, Investment Logger and Lending Tracker. You can export and import from the landing page or from Spend Logger → Settings.
+- One backup file holds everything: Spend Logger, Investment Logger, Lending Tracker and Life Savings. You can export and import from the landing page or from Spend Logger → Settings.
 - To restore, use **Import** and pick the JSON file. This replaces all current data. An older backup with no investment data leaves your investment entries as they are.
 - `.gitignore` excludes `*backup*.json` so a backup can't be committed to the public repo by accident.
 - The app's data lives under the GitHub Pages URL. If you rename the repo or change the URL, export first and import again at the new address.

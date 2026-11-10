@@ -53,6 +53,9 @@
     <!-- Lending Tracker: list of people or one person (see lend.js) -->
     <section id="view-lend" class="view" aria-label="Lending Tracker" hidden></section>
 
+    <!-- Life Savings: Mine / Mom snapshots (see savings.js) -->
+    <section id="view-save" class="view" aria-label="Life Savings" hidden></section>
+
     <!-- Spend Logger tabs -->
     <section id="view-home" class="view" aria-label="Home" hidden></section>
     <section id="view-history" class="view" aria-label="History" hidden></section>
@@ -187,6 +190,29 @@
     </form>
   </dialog>
 
+  <!-- Life Savings: record what every holding is worth on a date -->
+  <dialog id="savingsDialog" class="sheet tall">
+    <form id="savingsForm" class="sheet-body" novalidate>
+      <h2 id="savingsTitle">Update values</h2>
+      <p class="hint">Enter what each holding is worth on this date. Blank ones are skipped.</p>
+      <label class="field">As on
+        <input id="sDate" type="date" required>
+      </label>
+      <div id="savingsInputs"></div>
+      <label class="field">Note <span class="muted">(optional)</span>
+        <input id="sNote" type="text" maxlength="80" autocomplete="off">
+      </label>
+      <div class="import-footer">
+        <span id="sTotal" class="num"></span>
+        <span class="footer-btns">
+          <button type="button" class="btn danger" id="sDelete" hidden>Delete</button>
+          <button type="button" class="btn" data-action="close-dialog">Cancel</button>
+          <button type="submit" class="btn primary">Save</button>
+        </span>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Investment Logger: add / edit entry sheet -->
   <dialog id="investDialog" class="sheet">
     <form id="investForm" novalidate>
@@ -220,10 +246,12 @@
   </dialog>
 
   <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <input type="file" id="savingsImportFile" accept="application/json,.json" hidden>
 
   <script src="app.js"></script>
   <script src="invest.js"></script>
   <script src="lend.js"></script>
+  <script src="savings.js"></script>
   <script src="statement-import.js"></script>
 </body>
 </html>

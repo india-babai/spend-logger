@@ -6,7 +6,8 @@
  *
  * Screens ("modes") are picked by the URL hash: '' = landing page,
  * '#spend' = Spend Logger, '#invest' = Investment Logger, '#lend' and
- * '#lend/<personId>' = Lending Tracker (lend.js). Using the hash
+ * '#lend/<personId>' = Lending Tracker (lend.js), '#save' and '#save/<profileId>'
+ * = Life Savings (savings.js). Using the hash
  * means the phone's back button returns to the landing page.
  *
  * Sections:
@@ -372,7 +373,7 @@ let knownCurrent = currentKey();  // to notice when the app is reopened in a new
 
 function modeFromHash() {
   const base = location.hash.slice(1).split('/')[0]; // '#lend/<personId>' → 'lend'
-  return ['spend', 'invest', 'lend'].includes(base) ? base : 'landing';
+  return ['spend', 'invest', 'lend', 'save'].includes(base) ? base : 'landing';
 }
 
 function render() {
@@ -385,11 +386,13 @@ function render() {
   $('#view-landing').hidden = mode !== 'landing';
   $('#view-invest').hidden = mode !== 'invest';
   $('#view-lend').hidden = mode !== 'lend';
+  $('#view-save').hidden = mode !== 'save';
   $('#topbar').hidden = mode === 'landing';
   $('#spendTabbar').hidden = !isSpend;
   $('#monthNav').hidden = mode !== 'invest';
-  $('#modeTitle').textContent = { invest: 'Investment Logger', lend: 'Lending Tracker' }[mode] ?? 'Spend Logger';
-  $('#fab').hidden = mode === 'landing' || (isSpend && isSettings);
+  $('#modeTitle').textContent = { invest: 'Investment Logger', lend: 'Lending Tracker', save: 'Life Savings' }[mode] ?? 'Spend Logger';
+  // Life Savings has its own "Update values" button instead.
+  $('#fab').hidden = mode === 'landing' || mode === 'save' || (isSpend && isSettings);
   $('#fab').textContent = mode === 'lend' ? '+ Record' : '+ Add';
   for (const tab of ['home', 'history', 'settings']) {
     $(`#view-${tab}`).hidden = !isSpend || tab !== currentTab;
@@ -409,6 +412,11 @@ function render() {
     $('#cycleNav').hidden = true;
     $('#pageTitle').hidden = true;
     return renderLend(); // lend.js
+  }
+  if (mode === 'save') {
+    $('#cycleNav').hidden = true;
+    $('#pageTitle').hidden = true;
+    return renderSavings(); // savings.js
   }
 
   // Spend Logger header
@@ -438,7 +446,8 @@ function bar(spent, cap, extraClass = '') {
 
 function renderBanner() {
   const el = $('#backupBanner');
-  const hasData = state.transactions.length > 0 || investState.entries.length > 0 || lendState.entries.length > 0;
+  const hasData = state.transactions.length > 0 || investState.entries.length > 0 || lendState.entries.length > 0
+    || savingsState.profiles.some((p) => p.snapshots.length);
   const daysSince = state.lastExport ? Math.floor((Date.now() - new Date(state.lastExport)) / DAY_MS) : null;
   const overdue = hasData && (daysSince === null || daysSince > BACKUP_REMINDER_DAYS);
   el.hidden = !overdue;
@@ -486,6 +495,14 @@ function renderLanding() {
         <path d="M4 8h14l-3-3"/><path d="M20 16H6l3 3"/></svg></span>
       <span class="launch-title">Lending Tracker</span>
       <span class="launch-sub num">${esc(lendLandingInfo())}</span>
+      <span class="launch-chev" aria-hidden="true">›</span>
+    </a>
+
+    <a class="launch save" href="#save">
+      <span class="launch-icon"><svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg></span>
+      <span class="launch-title">Life Savings</span>
+      <span class="launch-sub num">${esc(savingsLandingInfo())}</span>
       <span class="launch-chev" aria-hidden="true">›</span>
     </a>
 
@@ -1219,7 +1236,7 @@ function hideToast() {
 
 /** One file with both loggers: the spend data at the top level (as before) plus `invest`. */
 function backupFile() {
-  const data = { ...state, invest: investState, lend: lendState, exportedAt: new Date().toISOString() };
+  const data = { ...state, invest: investState, lend: lendState, savings: savingsState, exportedAt: new Date().toISOString() };
   const name = `spend-logger-backup-${todayISO()}.json`;
   return new File([JSON.stringify(data, null, 2)], name, { type: 'application/json' });
 }
@@ -1270,20 +1287,24 @@ $('#importFile').addEventListener('change', async (e) => {
     const investCount = data.invest?.entries?.length;
     const contents = plural(data.transactions.length, 'transaction')
       + (investCount != null ? `, ${investCount} investment ${investCount === 1 ? 'entry' : 'entries'}` : '')
-      + (data.lend ? `, ${data.lend.entries?.length ?? 0} lending ${data.lend.entries?.length === 1 ? 'entry' : 'entries'}` : '');
+      + (data.lend ? `, ${data.lend.entries?.length ?? 0} lending ${data.lend.entries?.length === 1 ? 'entry' : 'entries'}` : '')
+      + (data.savings ? ', Life Savings' : '');
     const ok = confirm(`Replace current data with the backup from ${when} (${contents})?`);
     if (!ok) return;
     const invest = data.invest;
     const lend = data.lend;
+    const savings = data.savings;
     delete data.exportedAt;
     delete data.invest;
     delete data.lend;
+    delete data.savings;
     state = normalizeState(data);
     cycleStartDay = state.cycleStartDay;
     save();
     // Older backups have no investment data — keep what's on the phone then.
     if (invest) setInvestState(invest); // invest.js
     if (lend) setLendState(lend);       // lend.js
+    if (savings) setSavingsState(savings); // savings.js
     applyTheme();
     viewKey = currentKey();
     render();
@@ -1440,7 +1461,7 @@ window.addEventListener('hashchange', () => {
 
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
-// Start once invest.js and lend.js have loaded too (they run right after this file).
+// Start once invest.js, lend.js and savings.js have loaded too (they run right after this file).
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
   save(); // writes seed data on first run

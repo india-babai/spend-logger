@@ -28,6 +28,10 @@
   --lend: #7b4f6b;
   --lend-soft: #f4edf2;
   --lend-text: #ffffff;
+  /* Life Savings palette: muted bronze */
+  --save: #8a6a2f;
+  --save-soft: #f6f0e4;
+  --save-text: #ffffff;
   --bills: #b8926a;      /* Investment Logger "bills": muted tan */
   color-scheme: light;
 }
@@ -57,6 +61,9 @@
     --lend: #d29bbd;
     --lend-soft: #2a1d26;
     --lend-text: #1f0f19;
+    --save: #d9b36a;
+    --save-soft: #2a2416;
+    --save-text: #1f1806;
     --bills: #8c6d4f;
     color-scheme: dark;
   }
@@ -85,11 +92,19 @@
   --lend: #d29bbd;
   --lend-soft: #2a1d26;
   --lend-text: #1f0f19;
+  --save: #d9b36a;
+  --save-soft: #2a2416;
+  --save-text: #1f1806;
   --bills: #8c6d4f;
   color-scheme: dark;
 }
 
 /* Inside the Investment Logger, buttons and highlights use the invest palette. */
+body[data-mode="save"] {
+  --accent: var(--save);
+  --accent-soft: var(--save-soft);
+  --accent-text: var(--save-text);
+}
 body[data-mode="lend"] {
   --accent: var(--lend);
   --accent-soft: var(--lend-soft);
@@ -373,6 +388,7 @@ main {
 .launch.spend { background: var(--accent-soft); }
 .launch.invest { background: var(--invest-soft); }
 .launch.lend { background: var(--lend-soft); min-height: 132px; }
+.launch.save { background: var(--save-soft); min-height: 132px; }
 .launch-icon {
   width: 48px;
   height: 48px;
@@ -384,6 +400,7 @@ main {
 .launch.spend .launch-icon { background: var(--accent); color: var(--accent-text); }
 .launch.invest .launch-icon { background: var(--invest); color: var(--invest-text); }
 .launch.lend .launch-icon { background: var(--lend); color: var(--lend-text); }
+.launch.save .launch-icon { background: var(--save); color: var(--save-text); }
 .launch-icon svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .launch-title { font-size: 22px; font-weight: 700; }
 .launch-sub { font-size: 14px; color: var(--muted); }
@@ -478,6 +495,8 @@ main {
 /* No tab bar outside the Spend Logger, so tighten the bottom spacing. */
 body[data-mode="landing"] { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
 body[data-mode="invest"], body[data-mode="lend"] { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+body[data-mode="save"] { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+body[data-mode="save"] .toast { bottom: calc(20px + env(safe-area-inset-bottom)); }
 body[data-mode="invest"] .fab, body[data-mode="lend"] .fab { bottom: calc(20px + env(safe-area-inset-bottom)); }
 body[data-mode="invest"] .toast, body[data-mode="lend"] .toast { bottom: calc(88px + env(safe-area-inset-bottom)); }
 body[data-mode="landing"] .toast { bottom: calc(20px + env(safe-area-inset-bottom)); }
@@ -541,6 +560,101 @@ body[data-mode="landing"] .toast { bottom: calc(20px + env(safe-area-inset-botto
 .txn-bal { font-size: 12px; color: var(--muted); white-space: nowrap; text-align: right; }
 .person-manage { justify-content: center; margin-top: 20px; }
 .person-manage .btn { flex: 0 1 auto; }
+
+/* ---- Life Savings ---- */
+.seg-tabs {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.seg-tabs button {
+  min-height: 56px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.seg-tabs button small { font-size: 12px; font-weight: 500; }
+.seg-tabs button.active { background: var(--accent); color: var(--accent-text); }
+.save-together { text-align: center; margin: 0 0 10px; }
+.save-update-btn { margin-top: 14px; }
+.day-head .dot { vertical-align: middle; margin-right: 2px; }
+.hrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.txn-group > .hrow:last-child, .txn-group > .hrow-wrap:last-child > .hrow { border-bottom: 0; }
+.hrow-wrap > summary { list-style: none; cursor: pointer; }
+.hrow-wrap > summary::-webkit-details-marker { display: none; }
+.hrow-wrap[open] > summary .txn-chev { transform: rotate(180deg); }
+.hval { display: flex; flex-direction: column; align-items: flex-end; font-weight: 600; white-space: nowrap; }
+.hval small { font-size: 12px; font-weight: 500; }
+.parts { background: var(--bg); border-bottom: 1px solid var(--border); }
+.txn-group > .hrow-wrap:last-child .parts { border-bottom: 0; }
+.part-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 8px 28px;
+  font-size: 14px;
+  border-top: 1px dashed var(--border);
+}
+.part-label { overflow-wrap: anywhere; }
+.chart .save-bar { fill: var(--save); }
+.edit-row.hold .part-edit {
+  display: grid;
+  grid-template-columns: 1fr 1fr 48px;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 3px solid var(--border);
+}
+.edit-row.hold .add-part { justify-self: start; }
+.upd-group {
+  margin: 18px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+}
+.upd-row {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.upd-row.part { padding-left: 14px; }
+.upd-name { display: flex; flex-direction: column; font-size: 15px; overflow-wrap: anywhere; }
+.upd-name small { font-size: 12px; color: var(--muted); }
+.upd-row input { text-align: right; }
+.upd-holding {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0 2px;
+  font-weight: 600;
+}
+.upd-holding .num { color: var(--muted); font-weight: 500; }
+#savingsForm .import-footer { flex-wrap: wrap; }
+.footer-btns { display: flex; gap: 8px; margin-left: auto; }
+.footer-btns .btn { padding: 0 14px; }
 
 /* ---- Settings: collapsible sections ---- */
 .settings-intro { margin: 4px 4px 10px; }
